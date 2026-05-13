@@ -1,0 +1,1832 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#b22025" />
+  <title>Bloom Delivery — تأكيد التوصيل</title>
+
+  <!-- Fonts: Cairo (Arabic body), Sora (headings), DM Sans (English fallback) -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&family=Sora:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+
+  <!-- bcryptjs from cdnjs (jsdelivr was blocked in prior sessions) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/bcryptjs/2.4.3/bcrypt.min.js"></script>
+
+  <!-- SweetAlert2 for destructive confirms / errors -->
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <!-- ZXing barcode/QR scanner (battle-tested in handover.html) -->
+  <script src="https://unpkg.com/@zxing/library@latest"></script>
+
+  <style>
+    /* =========================================================
+       DESIGN TOKENS — canonical Bloom design system
+       ========================================================= */
+    :root {
+      --bloom:       #b22025;
+      --bloom-dark:  #8b191d;
+      --bloom-light: #fdf2f2;
+      --bg:          #fdf2f2;      /* Arabic apps use light red tint */
+      --surface:     #ffffff;
+      --surface-2:   #fafafa;
+      --border:      #e5e7eb;
+      --border-2:    #d1d5db;
+      --text:        #1a1a2e;
+      --muted:       #6b7280;
+      --success:     #16a34a;
+      --success-bg:  #dcfce7;
+      --error:       #dc2626;
+      --error-bg:    #fee2e2;
+      --info:        #2563eb;
+      --info-bg:     #dbeafe;
+      --warning:     #d97706;
+      --warning-bg:  #fef3c7;
+
+      --radius:      12px;
+      --radius-lg:   20px;
+      --radius-sm:   8px;
+
+      --shadow-sm:   0 1px 2px rgba(0,0,0,0.05);
+      --shadow:      0 2px 8px rgba(0,0,0,0.06);
+      --shadow-lg:   0 8px 24px rgba(0,0,0,0.12);
+
+      --font-arabic: 'Cairo', system-ui, -apple-system, 'Segoe UI', Tahoma, sans-serif;
+      --font-head:   'Sora', system-ui, -apple-system, sans-serif;
+      --font-mono:   'Courier New', ui-monospace, monospace;
+    }
+
+    /* =========================================================
+       RESET + BASE
+       ========================================================= */
+    *, *::before, *::after { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; }
+    html { -webkit-text-size-adjust: 100%; }
+    body {
+      font-family: var(--font-arabic);
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: 100dvh;
+      font-size: 15px;
+      line-height: 1.5;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-font-smoothing: antialiased;
+    }
+    button { font-family: inherit; cursor: pointer; }
+    input, select, textarea { font-family: inherit; }
+
+    /* Hide all views by default — JS reveals one at a time */
+    .view { display: none; }
+    .view.active { display: block; }
+
+    /* =========================================================
+       SHARED COMPONENTS
+       ========================================================= */
+    .container {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 20px 16px 80px;
+    }
+
+    h1, h2, h3 { font-family: var(--font-head); margin: 0; }
+
+    /* --- Logo --- */
+    .logo-block {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .logo-img {
+      width: 88px; height: 88px;
+      object-fit: contain;
+      background: #fff;
+      border-radius: 24px;
+      box-shadow: var(--shadow);
+      padding: 6px;
+    }
+    .logo-img-sm {
+      width: 36px; height: 36px;
+      object-fit: contain;
+      border-radius: 10px;
+    }
+
+    /* --- Buttons --- */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 700;
+      font-size: 15px;
+      border: 1.5px solid transparent;
+      border-radius: var(--radius);
+      padding: 12px 18px;
+      min-height: 48px;          /* touch target */
+      transition: all 0.15s ease;
+      text-decoration: none;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .btn:active { transform: scale(0.97); }
+    .btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; }
+
+    .btn-bloom {
+      background: var(--bloom);
+      color: #fff;
+    }
+    .btn-bloom:hover:not(:disabled) { background: var(--bloom-dark); }
+
+    .btn-outline-bloom {
+      background: transparent;
+      color: var(--bloom);
+      border-color: var(--bloom);
+    }
+    .btn-outline-bloom:hover:not(:disabled) {
+      background: var(--bloom-light);
+    }
+
+    .btn-outline {
+      background: var(--surface);
+      color: var(--text);
+      border-color: var(--border-2);
+    }
+    .btn-outline:hover:not(:disabled) { background: var(--surface-2); }
+
+    .btn-success {
+      background: var(--success);
+      color: #fff;
+    }
+
+    .btn-block { width: 100%; }
+    .btn-sm    { min-height: 38px; padding: 8px 14px; font-size: 13px; }
+
+    /* --- Form inputs --- */
+    .form-group { margin-bottom: 16px; }
+    .form-label {
+      display: block;
+      font-weight: 700;
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 6px;
+    }
+    .form-hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 4px;
+    }
+    .form-control {
+      width: 100%;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 12px 14px;
+      font-size: 15px;
+      color: var(--text);
+      min-height: 48px;
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    .form-control:focus {
+      border-color: var(--bloom);
+      box-shadow: 0 0 0 3px rgba(178,32,37,0.12);
+    }
+    .form-control[readonly] {
+      background: var(--surface-2);
+      color: var(--text);
+      font-weight: 700;
+      font-family: var(--font-mono);
+      letter-spacing: 1px;
+    }
+    textarea.form-control {
+      min-height: 80px;
+      resize: vertical;
+      font-family: var(--font-arabic);
+    }
+
+    /* Phone input — bigger, monospaced, tracked */
+    .input-passcode {
+      text-align: center;
+      letter-spacing: 6px;
+      font-size: 22px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+
+    /* --- Cards --- */
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      padding: 22px 18px;
+      margin-bottom: 14px;
+    }
+
+    /* --- Top bar (main view) --- */
+    .topbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      background: var(--surface);
+      padding: 10px 14px;
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow);
+      margin-bottom: 16px;
+    }
+    .topbar-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-width: 0;
+    }
+    .topbar-text {
+      min-width: 0;
+    }
+    .topbar-name {
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .topbar-store {
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.2;
+      white-space: nowrap;
+    }
+    .topbar-actions { display: flex; gap: 6px; flex-shrink: 0; }
+
+    /* --- Scanner --- */
+    .scanner-wrap {
+      display: none;
+      position: relative;
+      background: #000;
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 12px;
+    }
+    .scanner-wrap.active { display: block; }
+    #video-feed {
+      display: block;
+      width: 100%;
+      height: 240px;
+      object-fit: cover;
+    }
+    .scanner-overlay {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 75%;
+      height: 38%;
+      border: 2px solid #fff;
+      border-radius: 12px;
+      box-shadow: 0 0 0 9999px rgba(0,0,0,0.45);
+      pointer-events: none;
+    }
+    .scanner-controls {
+      position: absolute;
+      bottom: 8px;
+      left: 8px;
+      right: 8px;
+      display: flex;
+      gap: 8px;
+    }
+    .scanner-btn {
+      flex: 1;
+      background: rgba(255,255,255,0.95);
+      color: var(--text);
+      border: none;
+      border-radius: var(--radius-sm);
+      padding: 8px;
+      font-weight: 700;
+      font-size: 13px;
+      min-height: 38px;
+    }
+    .scanner-btn.flash-on { background: var(--warning); color: #fff; }
+    .btn-flash:not(.visible) { display: none; }
+
+    /* --- Order summary card (after verify) --- */
+    .order-summary {
+      background: var(--info-bg);
+      border: 1.5px solid #93c5fd;
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 16px;
+    }
+    .order-summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 0;
+      font-size: 14px;
+    }
+    .order-summary-row + .order-summary-row {
+      border-top: 1px dashed rgba(37,99,235,0.15);
+    }
+    .order-summary-label { color: var(--muted); font-weight: 600; }
+    .order-summary-value { color: var(--text); font-weight: 700; }
+    .order-summary-value.mono { font-family: var(--font-mono); }
+
+    /* --- Status cards (radio-as-card) --- */
+    .status-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+    .status-card {
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: var(--radius);
+      padding: 14px 12px;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.15s;
+      min-height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    .status-card:hover { border-color: var(--border-2); }
+    .status-card.selected {
+      border-color: var(--bloom);
+      background: var(--bloom-light);
+      color: var(--bloom);
+      box-shadow: 0 0 0 3px rgba(178,32,37,0.10);
+    }
+    .status-card .status-icon { font-size: 18px; }
+    .status-card.full { grid-column: 1 / -1; }
+
+    /* --- Payment block (conditional) --- */
+    .payment-block {
+      display: none;
+      background: var(--surface-2);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-top: 8px;
+      border: 1px solid var(--border);
+    }
+    .payment-block.show { display: block; animation: slideDown 0.2s ease; }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* --- Success view --- */
+    .success-panel {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      padding: 32px 22px;
+      text-align: center;
+      box-shadow: var(--shadow);
+    }
+    .success-check {
+      width: 84px; height: 84px;
+      background: var(--success-bg);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 18px;
+      animation: pop 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+    .success-check svg { width: 44px; height: 44px; color: var(--success); }
+    @keyframes pop {
+      from { transform: scale(0); }
+      to   { transform: scale(1); }
+    }
+    .success-title {
+      font-size: 22px;
+      font-weight: 800;
+      color: var(--success);
+      margin-bottom: 18px;
+    }
+    .success-meta {
+      background: var(--surface-2);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin: 18px 0;
+      display: grid;
+      gap: 8px;
+      text-align: right;
+    }
+    .success-meta-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+    }
+    .success-meta-label { color: var(--muted); font-weight: 600; }
+    .success-meta-value { color: var(--text); font-weight: 700; font-family: var(--font-mono); }
+
+    .sla-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 14px;
+      border-radius: 99px;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .sla-badge.on-time { background: var(--success-bg); color: #14532d; }
+    .sla-badge.delayed { background: var(--warning-bg); color: #78350f; }
+
+    /* --- History modal --- */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(0,0,0,0.5);
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .modal.show { display: flex; }
+    .modal-dialog {
+      background: var(--surface);
+      border-radius: var(--radius-lg);
+      width: 100%;
+      max-width: 560px;
+      max-height: 88vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-lg);
+    }
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    .modal-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .modal-close {
+      background: transparent;
+      border: none;
+      font-size: 22px;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px 10px;
+      border-radius: 6px;
+      line-height: 1;
+    }
+    .modal-close:hover { background: var(--surface-2); color: var(--text); }
+    .modal-body {
+      padding: 14px 18px;
+      overflow-y: auto;
+      flex: 1;
+    }
+
+    /* --- History list --- */
+    .history-item {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      padding: 12px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      margin-bottom: 10px;
+      background: var(--surface-2);
+      align-items: center;
+    }
+    .history-order {
+      font-family: var(--font-mono);
+      font-weight: 800;
+      font-size: 16px;
+      color: var(--text);
+    }
+    .history-details {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.4;
+    }
+    .history-details strong { color: var(--text); }
+    .history-status {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: 99px;
+      white-space: nowrap;
+    }
+    .history-status.delivered { background: var(--success-bg); color: #14532d; }
+    .history-status.partial   { background: var(--info-bg);    color: #1e3a8a; }
+    .history-status.returned  { background: var(--error-bg);   color: #7f1d1d; }
+    .history-status.noanswer  { background: var(--warning-bg); color: #78350f; }
+    .history-status.postponed { background: #e5e7eb;            color: #374151; }
+    .history-empty {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    /* --- Loader --- */
+    #loader {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 10000;
+      background: rgba(255,255,255,0.85);
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      gap: 14px;
+    }
+    #loader.show { display: flex; }
+    .spinner {
+      width: 42px;
+      height: 42px;
+      border: 3px solid var(--border);
+      border-top-color: var(--bloom);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text { font-size: 14px; color: var(--text); font-weight: 600; }
+
+    /* --- Toast --- */
+    #toast-wrap {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      z-index: 10001;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      pointer-events: none;
+    }
+    .toast {
+      background: var(--text);
+      color: #fff;
+      padding: 12px 18px;
+      border-radius: var(--radius);
+      font-size: 14px;
+      font-weight: 600;
+      box-shadow: var(--shadow-lg);
+      max-width: 480px;
+      pointer-events: auto;
+      animation: slideIn 0.25s ease;
+    }
+    .toast.success { background: var(--success); }
+    .toast.error   { background: var(--error); }
+    .toast.warning { background: var(--warning); }
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(-12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* --- Error message inline --- */
+    .error-msg {
+      color: var(--error);
+      font-size: 13px;
+      font-weight: 600;
+      margin-top: 8px;
+      min-height: 18px;
+    }
+
+    /* --- Section dividers --- */
+    .section-title {
+      font-family: var(--font-head);
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--muted);
+      margin: 18px 0 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    /* Responsive small */
+    @media (max-width: 380px) {
+      .container { padding: 16px 12px 80px; }
+      .status-grid { grid-template-columns: 1fr; }
+      .status-card.full { grid-column: 1; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- =====================================================================
+       LOADER + TOAST (global overlays)
+       ===================================================================== -->
+  <div id="loader">
+    <div class="spinner"></div>
+    <div class="loader-text" id="loader-text">جاري التحميل...</div>
+  </div>
+  <div id="toast-wrap"></div>
+
+  <!-- =====================================================================
+       VIEW 1: LOGIN
+       ===================================================================== -->
+  <div id="view-login" class="view">
+    <div class="container">
+      <div class="logo-block" style="margin-top: 30px;">
+        <img class="logo-img" src="bloom-logo.png" alt="Bloom Pharmacy"
+             onerror="this.onerror=null; this.src='bloom-logo.jpg';">
+        <h1 style="font-size:22px; color:var(--bloom); margin-top:4px;">Bloom Delivery</h1>
+        <div style="font-size:14px; color:var(--muted);">تأكيد التوصيل للمندوبين</div>
+      </div>
+
+      <div class="card">
+        <h2 style="font-size:18px; margin-bottom:6px;">أهلاً بك</h2>
+        <div style="font-size:13px; color:var(--muted); margin-bottom:18px;">
+          سجّل دخولك لإتمام التوصيلات
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-agent-id">كود المندوب</label>
+          <input type="text"
+                 class="form-control"
+                 id="login-agent-id"
+                 placeholder="مثال: AGT01"
+                 autocomplete="off"
+                 autocapitalize="characters"
+                 spellcheck="false" />
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="login-password">كلمة المرور</label>
+          <input type="password"
+                 class="form-control input-passcode"
+                 id="login-password"
+                 inputmode="numeric"
+                 maxlength="6"
+                 placeholder="••••"
+                 autocomplete="current-password" />
+        </div>
+
+        <div class="error-msg" id="login-error"></div>
+
+        <button type="button" id="btn-login" class="btn btn-bloom btn-block" style="margin-top:8px;">
+          تسجيل الدخول
+        </button>
+      </div>
+
+      <div style="text-align:center; font-size:11px; color:var(--muted); margin-top:18px;">
+        Bloom Pharmacy Tech · v1.0
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       VIEW 2: MAIN (confirmation form)
+       ===================================================================== -->
+  <div id="view-main" class="view">
+    <div class="container">
+
+      <!-- Top bar -->
+      <div class="topbar">
+        <div class="topbar-info">
+          <img class="logo-img-sm" src="bloom-logo.png" alt=""
+               onerror="this.onerror=null; this.src='bloom-logo.jpg';">
+          <div class="topbar-text">
+            <div class="topbar-name" id="topbar-name">—</div>
+            <div class="topbar-store" id="topbar-store">—</div>
+          </div>
+        </div>
+        <div class="topbar-actions">
+          <button type="button" class="btn btn-outline btn-sm" id="btn-history">
+            📋 السجل
+          </button>
+          <button type="button" class="btn btn-outline btn-sm" id="btn-logout">
+            🚪 خروج
+          </button>
+        </div>
+      </div>
+
+      <!-- Order ID + scanner -->
+      <div class="card">
+        <h3 style="font-size:16px; margin-bottom:12px;">تأكيد طلب جديد</h3>
+
+        <!-- Scanner -->
+        <div class="scanner-wrap" id="scanner-wrap">
+          <video id="video-feed" autoplay playsinline muted></video>
+          <div class="scanner-overlay"></div>
+          <div class="scanner-controls">
+            <button type="button" class="scanner-btn" id="btn-close-cam">✖ إغلاق</button>
+            <button type="button" class="scanner-btn btn-flash" id="btn-flash">🔦 الكشاف</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="order-id">رقم الطلب *</label>
+          <div style="display:flex; gap:8px;">
+            <input type="text"
+                   class="form-control"
+                   id="order-id"
+                   inputmode="numeric"
+                   placeholder="اكتب أو امسح الباركود"
+                   autocomplete="off"
+                   style="flex:1;" />
+            <button type="button" class="btn btn-outline-bloom" id="btn-scan" style="flex-shrink:0; padding: 0 14px;">
+              📷
+            </button>
+          </div>
+          <div class="error-msg" id="verify-error"></div>
+        </div>
+
+        <button type="button" class="btn btn-outline-bloom btn-block" id="btn-verify">
+          🔍 تحقق من الطلب
+        </button>
+      </div>
+
+      <!-- Order summary (appears after verify succeeds) -->
+      <div class="order-summary" id="order-summary" style="display:none;">
+        <div class="order-summary-row">
+          <span class="order-summary-label">رقم الطلب:</span>
+          <span class="order-summary-value mono" id="os-order-id">—</span>
+        </div>
+        <div class="order-summary-row">
+          <span class="order-summary-label">المنطقة:</span>
+          <span class="order-summary-value" id="os-zone">—</span>
+        </div>
+        <div class="order-summary-row">
+          <span class="order-summary-label">سعر الشحن:</span>
+          <span class="order-summary-value" id="os-zone-price">—</span>
+        </div>
+        <div class="order-summary-row">
+          <span class="order-summary-label">سُلِّم في:</span>
+          <span class="order-summary-value" id="os-handover-time">—</span>
+        </div>
+        <div class="order-summary-row">
+          <span class="order-summary-label">سُلِّم بواسطة:</span>
+          <span class="order-summary-value" id="os-handover-by">—</span>
+        </div>
+      </div>
+
+      <!-- Confirmation form (appears after verify succeeds) -->
+      <div class="card" id="confirm-card" style="display:none;">
+        <div class="section-title">حالة الطلب *</div>
+        <div class="status-grid" id="status-grid">
+          <div class="status-card" data-status="Delivered">
+            <span class="status-icon">✓</span> تم التوصيل
+          </div>
+          <div class="status-card" data-status="Partially Delivered">
+            <span class="status-icon">◐</span> جزئي
+          </div>
+          <div class="status-card" data-status="Returned">
+            <span class="status-icon">↩</span> مرتجع
+          </div>
+          <div class="status-card" data-status="No Answer">
+            <span class="status-icon">☎</span> لا يرد
+          </div>
+          <div class="status-card full" data-status="Postponed">
+            <span class="status-icon">⏰</span> مؤجل
+          </div>
+        </div>
+
+        <!-- Payment block: shows only for Delivered / Partial -->
+        <div class="payment-block" id="payment-block">
+          <div class="form-group">
+            <label class="form-label" for="amount-collected">المبلغ المُحصَّل (جنيه) *</label>
+            <input type="number"
+                   class="form-control"
+                   id="amount-collected"
+                   inputmode="decimal"
+                   step="0.01"
+                   min="0"
+                   placeholder="0.00" />
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="payment-method">طريقة الدفع *</label>
+            <select class="form-control" id="payment-method">
+              <option value="Cash">كاش</option>
+              <option value="Visa">فيزا</option>
+              <option value="Online">أونلاين</option>
+              <option value="InstaPay">انستا باي</option>
+              <option value="E-wallet">محفظة إلكترونية</option>
+              <option value="Partial Cash">جزء نقدي</option>
+              <option value="Bank Points">نقط بنك</option>
+            </select>
+          </div>
+
+          <div class="form-group" style="margin-bottom:0;">
+            <label class="form-label" for="receipt-number">رقم الإيصال (اختياري)</label>
+            <div style="display:flex; gap:8px;">
+              <input type="text"
+                     class="form-control"
+                     id="receipt-number"
+                     placeholder="اكتب أو امسح"
+                     autocomplete="off"
+                     style="flex:1;" />
+              <button type="button" class="btn btn-outline-bloom" id="btn-scan-receipt" style="flex-shrink:0; padding: 0 14px;">
+                📷
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-top:14px;">
+          <label class="form-label" for="confirm-notes">ملاحظات (اختياري)</label>
+          <textarea class="form-control" id="confirm-notes" rows="2" placeholder="أي ملاحظات إضافية..."></textarea>
+        </div>
+
+        <div class="error-msg" id="submit-error"></div>
+
+        <button type="button" class="btn btn-bloom btn-block" id="btn-submit" style="margin-top:12px;">
+          ✅ تأكيد التوصيل
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       VIEW 3: SUCCESS
+       ===================================================================== -->
+  <div id="view-success" class="view">
+    <div class="container">
+      <div class="success-panel">
+        <div class="success-check">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"
+               stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+        </div>
+        <div class="success-title">تم تأكيد التوصيل بنجاح</div>
+
+        <div class="success-meta">
+          <div class="success-meta-row">
+            <span class="success-meta-label">رقم الطلب:</span>
+            <span class="success-meta-value" id="success-order-id">—</span>
+          </div>
+          <div class="success-meta-row">
+            <span class="success-meta-label">الحالة:</span>
+            <span class="success-meta-value" id="success-status" style="font-family:var(--font-arabic);">—</span>
+          </div>
+          <div class="success-meta-row" id="success-amount-row" style="display:none;">
+            <span class="success-meta-label">المبلغ:</span>
+            <span class="success-meta-value" id="success-amount">—</span>
+          </div>
+          <div class="success-meta-row">
+            <span class="success-meta-label">المدة:</span>
+            <span class="success-meta-value" id="success-duration">—</span>
+          </div>
+        </div>
+
+        <div id="success-sla-wrap" style="margin-bottom:18px;"></div>
+
+        <button type="button" class="btn btn-bloom btn-block" id="btn-new-order">
+          تأكيد طلب جديد
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       HISTORY MODAL
+       ===================================================================== -->
+  <div class="modal" id="history-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">سجل توصيلات اليوم</div>
+        <button type="button" class="modal-close" id="btn-close-history">×</button>
+      </div>
+      <div class="modal-body" id="history-body">
+        <div class="history-empty">جاري التحميل...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- =====================================================================
+       APP LOGIC
+       ===================================================================== -->
+  <script type="module">
+    /* =====================================================================
+       1. FIREBASE INIT — anonymous auth + Firestore (System 1: bloom-delivery)
+       ===================================================================== */
+    import { initializeApp }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import {
+      getFirestore, doc, getDoc, getDocs, collection, query, where, limit,
+      setDoc, updateDoc, runTransaction, serverTimestamp
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getAuth, signInAnonymously }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6dO6F02hlsZ9XKaNgmhHCeFJ0cwhfg6o",
+      authDomain: "bloom-delivery-f9540.firebaseapp.com",
+      projectId: "bloom-delivery-f9540",
+      storageBucket: "bloom-delivery-f9540.firebasestorage.app",
+      messagingSenderId: "409469512995",
+      appId: "1:409469512995:web:74eb908a613f3f2c9a3096"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const db   = getFirestore(app);
+    const auth = getAuth(app);
+    // Anonymous auth at module load — required for Firestore rules baseline.
+    await signInAnonymously(auth);
+
+    /* =====================================================================
+       2. CONSTANTS — status/payment labels, zone meta, session key
+       ===================================================================== */
+
+    // Internal status values stored in English (admin.html will group by these).
+    // Arabic is for display only.
+    const STATUS_LABELS_AR = {
+      'Delivered':           'تم التوصيل',
+      'Partially Delivered': 'جزئي',
+      'Returned':            'مرتجع',
+      'No Answer':           'لا يرد',
+      'Postponed':           'مؤجل'
+    };
+
+    // Statuses that require payment fields
+    const PAYMENT_REQUIRED_STATUSES = new Set(['Delivered', 'Partially Delivered']);
+
+    // CSS-class hint for history badges
+    const STATUS_CSS = {
+      'Delivered':           'delivered',
+      'Partially Delivered': 'partial',
+      'Returned':            'returned',
+      'No Answer':           'noanswer',
+      'Postponed':           'postponed'
+    };
+
+    // Zone meta — same logic as handover.html. Doc IDs are zone_X_store_YY,
+    // but the .id field inside is the short zone_X form.
+    const ZONE_META = {
+      zone_1: { name: 'Zone 1' },
+      zone_2: { name: 'Zone 2' },
+      zone_3: { name: 'Zone 3' },
+      zone_4: { name: 'Zone 4' },
+      free:   { name: 'Free' }
+    };
+    function getZoneShortId(zoneDocId) {
+      if (!zoneDocId) return 'free';
+      if (zoneDocId === 'free') return 'free';
+      for (const key of Object.keys(ZONE_META)) {
+        if (zoneDocId === key || zoneDocId.startsWith(key + '_')) return key;
+      }
+      return 'free';
+    }
+
+    const SESSION_KEY    = 'bloomDeliveryAgent';
+    const SESSION_MAX_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+
+    /* =====================================================================
+       3. SESSION HELPERS — 30-day localStorage persistence
+       ===================================================================== */
+    function loadSession() {
+      try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (!raw) return null;
+        const obj = JSON.parse(raw);
+        if (obj && obj.user && obj.savedAt && (Date.now() - obj.savedAt) < SESSION_MAX_MS) {
+          return obj.user;
+        }
+        localStorage.removeItem(SESSION_KEY);
+      } catch(_) {}
+      return null;
+    }
+    function saveSession(user) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify({ user, savedAt: Date.now() }));
+    }
+    function clearSession() {
+      localStorage.removeItem(SESSION_KEY);
+    }
+
+    /* =====================================================================
+       4. UI HELPERS — toast, loader, beep, vibrate, formatters
+       ===================================================================== */
+    function showToast(msg, type = 'info', ms = 3200) {
+      const w = document.getElementById('toast-wrap');
+      const t = document.createElement('div');
+      t.className = 'toast ' + type;
+      t.textContent = msg;
+      w.appendChild(t);
+      setTimeout(() => { try { t.parentNode?.removeChild(t); } catch(_) {} }, ms);
+    }
+    function showLoader(text = 'جاري التحميل...') {
+      document.getElementById('loader-text').textContent = text;
+      document.getElementById('loader').classList.add('show');
+    }
+    function hideLoader() {
+      document.getElementById('loader').classList.remove('show');
+    }
+
+    // Web Audio beep on successful scan (1046 Hz sine, ~0.25s)
+    let audioCtx = null;
+    function beep() {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc  = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain); gain.connect(audioCtx.destination);
+        osc.frequency.value = 1046; osc.type = 'sine';
+        gain.gain.setValueAtTime(0.6, audioCtx.currentTime);
+        gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.25);
+        osc.start(audioCtx.currentTime);
+        osc.stop(audioCtx.currentTime + 0.25);
+      } catch(_) {}
+    }
+    function vibrate(pattern = [60, 30, 40]) {
+      try { if (navigator.vibrate) navigator.vibrate(pattern); } catch(_) {}
+    }
+
+    function formatTimeArabic(date) {
+      // Local time HH:mm (12h with AM/PM); Egyptian Arabic locale
+      try {
+        return new Intl.DateTimeFormat('ar-EG', {
+          hour: 'numeric', minute: '2-digit', hour12: true
+        }).format(date);
+      } catch(_) {
+        return date.toLocaleTimeString();
+      }
+    }
+    function formatDurationAr(min) {
+      if (min < 1) return 'أقل من دقيقة';
+      if (min < 60) return `${min} دقيقة`;
+      const h = Math.floor(min / 60);
+      const m = min % 60;
+      return m === 0 ? `${h} ساعة` : `${h} س ${m} د`;
+    }
+    function formatEGP(amount) {
+      const n = Number(amount);
+      if (Number.isNaN(n)) return '—';
+      // Egyptian convention: no trailing zeros unless cents exist
+      return (Number.isInteger(n) ? n.toString() : n.toFixed(2)) + ' EGP';
+    }
+    function todayKeyStr() {
+      // YYYY-MM-DD using UTC date — MUST match handover.html which uses
+      // `new Date().toISOString().slice(0, 10)`. If delivery.html used local
+      // time and handover.html used UTC, late-evening confirmations in Egypt
+      // (UTC+2/+3) would look for the wrong doc key and fail.
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    /* =====================================================================
+       5. VIEW ROUTER — pure DOM swap (no reloads)
+       ===================================================================== */
+    function showView(name) {
+      document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+      const v = document.getElementById('view-' + name);
+      if (v) v.classList.add('active');
+      // Always close camera + reset transient UI when changing views
+      stopCamera();
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+
+    /* =====================================================================
+       6. STATE — current session + transient form state
+       ===================================================================== */
+    let _session         = null;   // { agent_id, name, store_id, ... }
+    let _storeName       = '';     // Hydrated after login
+    let _currentHandover = null;   // Currently-verified handover doc
+    let _currentSLAMins  = 60;     // Cached SLA for the verified order
+    let _currentZoneName = '';
+    let _currentZonePrice = '';
+    let _selectedStatus  = null;   // Internal English status
+
+    /* =====================================================================
+       7. AUTH — login + logout
+       ===================================================================== */
+    async function login() {
+      const agentIdRaw = document.getElementById('login-agent-id').value;
+      const passwordRaw = document.getElementById('login-password').value;
+      const errBox = document.getElementById('login-error');
+      errBox.textContent = '';
+
+      // Trim but DO NOT lowercase — agent IDs are case-sensitive (e.g. AGT01)
+      const agentId  = (agentIdRaw  || '').trim();
+      const password = (passwordRaw || '').trim();
+
+      if (!agentId)  { errBox.textContent = 'من فضلك أدخل كود المندوب'; return; }
+      if (!password) { errBox.textContent = 'من فضلك أدخل كلمة المرور'; return; }
+
+      // bcrypt namespace can be `bcrypt` OR `dcodeIO.bcrypt` depending on CDN
+      const bcryptLib = (typeof bcrypt !== 'undefined') ? bcrypt
+                      : (typeof dcodeIO !== 'undefined' && dcodeIO.bcrypt) ? dcodeIO.bcrypt
+                      : null;
+
+      try {
+        showLoader('جاري تسجيل الدخول...');
+
+        // Look up agent doc by exact ID first
+        let snap = await getDoc(doc(db, 'agents', agentId));
+
+        // Fallback: try a few case variants (handles e.g. "agt01" typo)
+        if (!snap.exists()) {
+          const variants = [agentId.toUpperCase(), agentId.toLowerCase()];
+          for (const v of variants) {
+            if (v === agentId) continue;
+            const trySnap = await getDoc(doc(db, 'agents', v));
+            if (trySnap.exists()) { snap = trySnap; break; }
+          }
+        }
+
+        if (!snap.exists()) {
+          hideLoader();
+          errBox.textContent = 'كود المندوب غير صحيح';
+          return;
+        }
+
+        const agentData = snap.data();
+        const realAgentId = snap.id; // Use the actual doc ID (case-correct)
+
+        if (agentData.status && agentData.status !== 'active') {
+          hideLoader();
+          errBox.textContent = 'الحساب غير مفعّل. تواصل مع المدير.';
+          return;
+        }
+
+        // Verify password — prefer bcrypt hash, fallback to plain text (legacy)
+        let passwordOk = false;
+        if (agentData.password_hash) {
+          if (!bcryptLib) {
+            hideLoader();
+            errBox.textContent = 'خطأ في تحميل مكتبة الأمان. حدّث الصفحة.';
+            return;
+          }
+          try {
+            passwordOk = bcryptLib.compareSync(password, agentData.password_hash);
+          } catch(_) { passwordOk = false; }
+        } else if (agentData.password != null) {
+          // Legacy plain text — coerce both sides to strings to handle stored numbers
+          passwordOk = (String(agentData.password) === password);
+        }
+
+        if (!passwordOk) {
+          hideLoader();
+          errBox.textContent = 'كلمة المرور غير صحيحة';
+          return;
+        }
+
+        // Fetch store name for top-bar display
+        let storeName = agentData.store_id || '';
+        try {
+          const storeSnap = await getDoc(doc(db, 'stores', agentData.store_id));
+          if (storeSnap.exists()) storeName = storeSnap.data().name || storeName;
+        } catch(_) {}
+
+        // Build session — strip password fields before storing
+        const sessionData = {
+          agent_id: realAgentId,
+          name:     agentData.name || realAgentId,
+          store_id: agentData.store_id || null,
+          store_name: storeName
+        };
+        saveSession(sessionData);
+        _session  = sessionData;
+        _storeName = storeName;
+
+        // Clear form fields
+        document.getElementById('login-agent-id').value = '';
+        document.getElementById('login-password').value = '';
+
+        hideLoader();
+        renderTopBar();
+        showView('main');
+        showToast(`مرحباً ${_session.name}`, 'success');
+
+      } catch(err) {
+        hideLoader();
+        console.error('[Bloom Delivery] login error:', err);
+        errBox.textContent = 'خطأ في الاتصال. حاول مرة أخرى.';
+      }
+    }
+
+    function logout() {
+      Swal.fire({
+        title: 'تسجيل الخروج',
+        text: 'هل أنت متأكد أنك تريد تسجيل الخروج؟',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'نعم، تسجيل الخروج',
+        cancelButtonText: 'إلغاء',
+        confirmButtonColor: '#b22025',
+        cancelButtonColor: '#6b7280'
+      }).then(result => {
+        if (result.isConfirmed) {
+          clearSession();
+          _session = null;
+          resetForm(true);
+          showView('login');
+          showToast('تم تسجيل الخروج', 'info');
+        }
+      });
+    }
+
+    function renderTopBar() {
+      if (!_session) return;
+      document.getElementById('topbar-name').textContent  = _session.name;
+      document.getElementById('topbar-store').textContent = _session.store_name || _session.store_id || '';
+    }
+
+    /* =====================================================================
+       8. CAMERA SCANNER — verbatim pattern from handover.html
+       ===================================================================== */
+    let codeReader    = null;
+    let currentStream = null;
+    let cameraOpen    = false;
+    let flashOn       = false;
+    let scanTarget    = 'order-id'; // 'order-id' or 'receipt-number'
+
+    function toggleCamera(target = 'order-id') {
+      if (cameraOpen && scanTarget === target) {
+        stopCamera();
+        return;
+      }
+      // Reset before reopening (e.g. switching from order-id to receipt scan)
+      if (cameraOpen) stopCamera();
+
+      scanTarget = target;
+
+      if (codeReader) { try { codeReader.reset(); } catch(_) {} codeReader = null; }
+      codeReader = new ZXing.BrowserMultiFormatReader();
+
+      const constraints = {
+        video: { facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720} }
+      };
+
+      // KEY: NO await before decodeFromConstraints — breaks the scan loop on mobile.
+      codeReader.decodeFromConstraints(constraints, 'video-feed', (result) => {
+        if (result) handleScanResult(result.getText());
+      });
+
+      // getUserMedia comes AFTER, ONLY for torch detection.
+      navigator.mediaDevices.getUserMedia(constraints).then(stream => {
+        currentStream = stream;
+        try {
+          const track = stream.getVideoTracks()[0];
+          const caps  = track.getCapabilities ? track.getCapabilities() : {};
+          if (caps.torch) {
+            document.getElementById('btn-flash').classList.add('visible');
+          }
+        } catch(_) {}
+      }).catch(err => {
+        console.warn('getUserMedia (post-decode) failed:', err);
+      });
+
+      cameraOpen = true;
+      document.getElementById('scanner-wrap').classList.add('active');
+      // Scroll camera into view on mobile
+      setTimeout(() => {
+        document.getElementById('scanner-wrap').scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 100);
+    }
+
+    function stopCamera() {
+      if (codeReader) { try { codeReader.reset(); } catch(_) {} codeReader = null; }
+      if (currentStream) {
+        try { currentStream.getTracks().forEach(t => t.stop()); } catch(_) {}
+        currentStream = null;
+      }
+      cameraOpen = false;
+      flashOn    = false;
+      const wrap = document.getElementById('scanner-wrap');
+      if (wrap) wrap.classList.remove('active');
+      const flashBtn = document.getElementById('btn-flash');
+      if (flashBtn) {
+        flashBtn.classList.remove('visible', 'flash-on');
+        flashBtn.textContent = '🔦 الكشاف';
+      }
+    }
+
+    function handleScanResult(text) {
+      const cleaned = (text || '').trim();
+      if (!cleaned) return;
+
+      if (scanTarget === 'order-id') {
+        // Order IDs must be numeric — reject URL/text QRs
+        if (!/^\d+$/.test(cleaned)) {
+          showToast('باركود غير صالح — يجب أن يكون أرقام فقط', 'error');
+          vibrate([120]);
+          return;
+        }
+        document.getElementById('order-id').value = cleaned;
+      } else {
+        // Receipt number — accept whatever (letters/numbers OK)
+        document.getElementById('receipt-number').value = cleaned;
+      }
+
+      vibrate([60, 30, 40]);
+      beep();
+      stopCamera();
+      showToast('تم المسح ✓', 'success', 1800);
+    }
+
+    async function toggleFlash() {
+      if (!currentStream) return;
+      try {
+        const track = currentStream.getVideoTracks()[0];
+        await track.applyConstraints({ advanced: [{ torch: !flashOn }] });
+        flashOn = !flashOn;
+        const btn = document.getElementById('btn-flash');
+        btn.classList.toggle('flash-on', flashOn);
+        btn.textContent = flashOn ? '🔦 إطفاء' : '🔦 الكشاف';
+      } catch(e) {
+        console.warn('Flash toggle failed:', e);
+        showToast('جهازك لا يدعم التحكم في الكشاف', 'warning');
+      }
+    }
+
+    /* =====================================================================
+       9. ORDER VERIFY — fetch handover_log + zone + check assignment
+       ===================================================================== */
+    async function verifyOrder() {
+      const errBox    = document.getElementById('verify-error');
+      const verifyBtn = document.getElementById('btn-verify');
+      errBox.textContent = '';
+      hideOrderSummary();
+      hideConfirmCard();
+
+      const orderId = (document.getElementById('order-id').value || '').trim();
+      if (!orderId) {
+        errBox.textContent = 'من فضلك أدخل رقم الطلب';
+        return;
+      }
+      if (!/^\d+$/.test(orderId)) {
+        errBox.textContent = 'رقم الطلب يجب أن يكون أرقام فقط';
+        return;
+      }
+
+      verifyBtn.disabled = true;
+
+      try {
+        showLoader('جاري التحقق من الطلب...');
+
+        const docKey = orderId + '_' + todayKeyStr();
+        const handoverSnap = await getDoc(doc(db, 'handover_log', docKey));
+
+        if (!handoverSnap.exists()) {
+          hideLoader();
+          errBox.textContent = 'لم يتم تسليم هذا الطلب اليوم';
+          return;
+        }
+
+        const handover = handoverSnap.data();
+
+        // Strict per-agent assignment check (per brief §3.2)
+        if (handover.agent_id !== _session.agent_id) {
+          hideLoader();
+          errBox.textContent = 'هذا الطلب غير مُسنَد إليك. تواصل مع الموظف.';
+          return;
+        }
+
+        // Already-confirmed check
+        const confirmSnap = await getDoc(doc(db, 'delivery_confirm', docKey));
+        if (confirmSnap.exists()) {
+          hideLoader();
+          errBox.textContent = 'هذا الطلب تم تأكيده مسبقاً';
+          return;
+        }
+
+        // Fetch zone for SLA + display
+        let slaMinutes = 60;
+        let zoneName   = 'Free';
+        let zonePrice  = handover.free_price || 0;
+
+        if (handover.zone_id) {
+          try {
+            const zoneSnap = await getDoc(doc(db, 'zones', handover.zone_id));
+            if (zoneSnap.exists()) {
+              const z = zoneSnap.data();
+              slaMinutes = z.sla_minutes || 60;
+              zoneName   = z.name || ZONE_META[getZoneShortId(handover.zone_id)]?.name || 'Zone';
+              // Free zone uses handover.free_price; numeric zones use the zone doc's price
+              if (getZoneShortId(handover.zone_id) === 'free') {
+                zonePrice = handover.free_price || 0;
+              } else {
+                zonePrice = z.price || 0;
+              }
+            }
+          } catch(e) { console.warn('zone fetch failed:', e); }
+        }
+
+        // Cache for submit step
+        _currentHandover  = handover;
+        _currentSLAMins   = slaMinutes;
+        _currentZoneName  = zoneName;
+        _currentZonePrice = zonePrice;
+
+        // Render order summary
+        const handoverTs = handover.handover_ts?.toDate?.() || new Date();
+        document.getElementById('os-order-id').textContent = handover.order_id;
+        document.getElementById('os-zone').textContent     = zoneName;
+        document.getElementById('os-zone-price').textContent = formatEGP(zonePrice);
+        document.getElementById('os-handover-time').textContent = formatTimeArabic(handoverTs);
+        document.getElementById('os-handover-by').textContent = handover.handover_by || '—';
+
+        showOrderSummary();
+        showConfirmCard();
+        // Reset status / payment state
+        clearStatusSelection();
+
+        hideLoader();
+        // Scroll the user into the form
+        setTimeout(() => {
+          document.getElementById('confirm-card').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 80);
+
+      } catch(err) {
+        hideLoader();
+        console.error('[Bloom Delivery] verify error:', err);
+        errBox.textContent = 'خطأ في الاتصال. حاول مرة أخرى.';
+      } finally {
+        verifyBtn.disabled = false;
+      }
+    }
+
+    function showOrderSummary() { document.getElementById('order-summary').style.display = 'block'; }
+    function hideOrderSummary() { document.getElementById('order-summary').style.display = 'none'; }
+    function showConfirmCard()  { document.getElementById('confirm-card').style.display = 'block'; }
+    function hideConfirmCard()  { document.getElementById('confirm-card').style.display = 'none'; }
+
+    /* =====================================================================
+       10. STATUS LOGIC — show/hide payment fields conditionally
+       ===================================================================== */
+    function selectStatus(statusValue) {
+      _selectedStatus = statusValue;
+      document.querySelectorAll('.status-card').forEach(c => {
+        c.classList.toggle('selected', c.dataset.status === statusValue);
+      });
+      // Show payment block ONLY for Delivered / Partially Delivered
+      const block = document.getElementById('payment-block');
+      if (PAYMENT_REQUIRED_STATUSES.has(statusValue)) {
+        block.classList.add('show');
+        // Pre-fill amount with the zone shipping price as a sane default
+        const amtInput = document.getElementById('amount-collected');
+        if (!amtInput.value && _currentZonePrice) {
+          amtInput.value = _currentZonePrice;
+        }
+      } else {
+        block.classList.remove('show');
+      }
+      // Clear any previous submit error
+      document.getElementById('submit-error').textContent = '';
+    }
+
+    function clearStatusSelection() {
+      _selectedStatus = null;
+      document.querySelectorAll('.status-card').forEach(c => c.classList.remove('selected'));
+      document.getElementById('payment-block').classList.remove('show');
+      document.getElementById('amount-collected').value = '';
+      document.getElementById('payment-method').value   = 'Cash';
+      document.getElementById('receipt-number').value   = '';
+      document.getElementById('confirm-notes').value    = '';
+      document.getElementById('submit-error').textContent = '';
+    }
+
+    /* =====================================================================
+       11. SUBMIT CONFIRMATION — atomic transaction
+       ===================================================================== */
+    async function submitConfirmation() {
+      const errBox = document.getElementById('submit-error');
+      errBox.textContent = '';
+      const submitBtn = document.getElementById('btn-submit');
+
+      if (!_currentHandover) {
+        errBox.textContent = 'تحقق من الطلب أولاً';
+        return;
+      }
+      if (!_selectedStatus) {
+        errBox.textContent = 'اختر حالة الطلب';
+        return;
+      }
+
+      const orderId = _currentHandover.order_id;
+      const docKey  = orderId + '_' + todayKeyStr();
+
+      // Gather payment fields (if applicable)
+      let amountCollected = 0;
+      let paymentMethod   = '';
+      let receiptNumber   = '';
+
+      if (PAYMENT_REQUIRED_STATUSES.has(_selectedStatus)) {
+        const amtRaw = document.getElementById('amount-collected').value.trim();
+        if (amtRaw === '' || isNaN(parseFloat(amtRaw)) || parseFloat(amtRaw) < 0) {
+          errBox.textContent = 'أدخل المبلغ المُحصَّل بشكل صحيح';
+          return;
+        }
+        amountCollected = parseFloat(amtRaw);
+        paymentMethod   = document.getElementById('payment-method').value;
+        receiptNumber   = document.getElementById('receipt-number').value.trim();
+      }
+
+      const notes = document.getElementById('confirm-notes').value.trim();
+
+      // Disable submit button immediately to block double-tap
+      submitBtn.disabled = true;
+
+      try {
+        showLoader('جاري حفظ التأكيد...');
+
+        let finalDuration = 0;
+        let finalSLA      = 'On Time';
+
+        await runTransaction(db, async tx => {
+          // Re-read inside transaction to prevent double-submit race
+          const confirmRef = doc(db, 'delivery_confirm', docKey);
+          const existing   = await tx.get(confirmRef);
+          if (existing.exists()) throw new Error('ALREADY_CONFIRMED');
+
+          const handoverRef  = doc(db, 'handover_log', docKey);
+          const handoverSnap = await tx.get(handoverRef);
+          if (!handoverSnap.exists()) throw new Error('NO_HANDOVER');
+
+          const h = handoverSnap.data();
+          if (h.agent_id !== _session.agent_id) throw new Error('NOT_YOUR_ORDER');
+
+          // Compute duration + SLA based on server-stored handover_ts vs now
+          const handoverTs   = h.handover_ts.toDate();
+          const confirmTs    = new Date();
+          const durationMin  = Math.max(0, Math.round((confirmTs - handoverTs) / 60000));
+          const slaStatus    = durationMin <= _currentSLAMins ? 'On Time' : 'Delayed';
+
+          finalDuration = durationMin;
+          finalSLA      = slaStatus;
+
+          // Write delivery_confirm doc (full audit record)
+          tx.set(confirmRef, {
+            order_id:         orderId,
+            agent_id:         _session.agent_id,
+            agent_name:       _session.name,
+            store_id:         _session.store_id,
+            zone_id:          h.zone_id || null,
+            status:           _selectedStatus,           // English internal value
+            amount_collected: amountCollected,
+            payment_method:   paymentMethod || null,
+            receipt_number:   receiptNumber || null,
+            notes:            notes || '',
+            photos:           [],                          // future-ready
+            confirm_ts:       serverTimestamp(),
+            duration_minutes: durationMin,
+            sla_status:       slaStatus,
+            handover_ref:     docKey                      // backlink for joins in admin
+          });
+
+          // Update handover_log status (Firestore rules will allow ONLY status + last_updated)
+          tx.update(handoverRef, {
+            status:       _selectedStatus,
+            last_updated: serverTimestamp()
+          });
+        });
+
+        hideLoader();
+
+        // Populate success view + transition
+        document.getElementById('success-order-id').textContent = orderId;
+        document.getElementById('success-status').textContent   = STATUS_LABELS_AR[_selectedStatus] || _selectedStatus;
+        document.getElementById('success-duration').textContent = formatDurationAr(finalDuration);
+
+        const amtRow = document.getElementById('success-amount-row');
+        if (PAYMENT_REQUIRED_STATUSES.has(_selectedStatus)) {
+          document.getElementById('success-amount').textContent = formatEGP(amountCollected);
+          amtRow.style.display = 'flex';
+        } else {
+          amtRow.style.display = 'none';
+        }
+
+        const slaWrap = document.getElementById('success-sla-wrap');
+        if (finalSLA === 'On Time') {
+          slaWrap.innerHTML = '<span class="sla-badge on-time">✓ في الوقت المحدد</span>';
+        } else {
+          slaWrap.innerHTML = '<span class="sla-badge delayed">⚠ متأخر</span>';
+        }
+
+        showView('success');
+        beep();
+        vibrate([80, 40, 80]);
+
+      } catch(err) {
+        hideLoader();
+        submitBtn.disabled = false;
+        if (err.message === 'ALREADY_CONFIRMED') {
+          errBox.textContent = 'هذا الطلب تم تأكيده مسبقاً';
+        } else if (err.message === 'NO_HANDOVER') {
+          errBox.textContent = 'سجل التسليم غير موجود — اتصل بالموظف';
+        } else if (err.message === 'NOT_YOUR_ORDER') {
+          errBox.textContent = 'هذا الطلب لم يعد مُسنَداً إليك';
+        } else {
+          console.error('[Bloom Delivery] submit error:', err);
+          errBox.textContent = 'خطأ في الحفظ. حاول مرة أخرى.';
+        }
+      }
+    }
+
+    /* =====================================================================
+       12. RESET — for "new order" button on success view
+       ===================================================================== */
+    function resetForm(clearOrderId = true) {
+      _currentHandover   = null;
+      _currentSLAMins    = 60;
+      _currentZoneName   = '';
+      _currentZonePrice  = '';
+      _selectedStatus    = null;
+
+      if (clearOrderId) {
+        document.getElementById('order-id').value = '';
+      }
+      document.getElementById('verify-error').textContent  = '';
+      document.getElementById('submit-error').textContent  = '';
+
+      // Re-enable submit button (was disabled during a previous submit)
+      const submitBtn = document.getElementById('btn-submit');
+      if (submitBtn) submitBtn.disabled = false;
+
+      hideOrderSummary();
+      hideConfirmCard();
+      clearStatusSelection();
+    }
+
+    /* =====================================================================
+       13. HISTORY — today's deliveries by this agent
+       ===================================================================== */
+    async function loadHistory() {
+      const body = document.getElementById('history-body');
+      body.innerHTML = '<div class="history-empty">جاري التحميل...</div>';
+
+      try {
+        // No composite index allowed → fetch by agent_id, filter by date in JS
+        const q = query(
+          collection(db, 'delivery_confirm'),
+          where('agent_id', '==', _session.agent_id),
+          limit(200)
+        );
+        const snap = await getDocs(q);
+        let data = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+        // Filter to today only — uses LOCAL midnight (UI convention, "today"
+        // means the agent's local day, not UTC day). This differs from the doc
+        // key in handover_log which is UTC; that's intentional — keys are for
+        // atomicity, this filter is for human UX.
+        const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+        const todayEnd   = new Date(); todayEnd.setHours(23, 59, 59, 999);
+        data = data.filter(d => {
+          const ts = d.confirm_ts?.toDate?.();
+          return ts && ts >= todayStart && ts <= todayEnd;
+        });
+
+        data.sort((a, b) => (b.confirm_ts.toDate() - a.confirm_ts.toDate()));
+
+        if (data.length === 0) {
+          body.innerHTML = '<div class="history-empty">لا توجد توصيلات اليوم بعد</div>';
+          return;
+        }
+
+        body.innerHTML = data.map(d => {
+          const ts = d.confirm_ts.toDate();
+          const cssClass = STATUS_CSS[d.status] || 'postponed';
+          const statusAr = STATUS_LABELS_AR[d.status] || d.status;
+          const amount   = (d.amount_collected != null && d.amount_collected > 0)
+                           ? `· <strong>${formatEGP(d.amount_collected)}</strong>` : '';
+          const pmt      = d.payment_method ? `· ${arabicPayment(d.payment_method)}` : '';
+          const time     = formatTimeArabic(ts);
+          const dur      = formatDurationAr(d.duration_minutes || 0);
+          const slaIcon  = d.sla_status === 'On Time' ? '✓' : '⚠';
+
+          return `
+            <div class="history-item">
+              <div class="history-order">#${escapeHtml(d.order_id)}</div>
+              <div class="history-details">
+                ${time} · ${dur} ${slaIcon}<br>
+                ${amount} ${pmt}
+              </div>
+              <div class="history-status ${cssClass}">${escapeHtml(statusAr)}</div>
+            </div>
+          `;
+        }).join('');
+
+      } catch(err) {
+        console.error('[Bloom Delivery] history load error:', err);
+        body.innerHTML = '<div class="history-empty">خطأ في تحميل السجل</div>';
+      }
+    }
+
+    function arabicPayment(method) {
+      const m = {
+        'Cash':'كاش', 'Visa':'فيزا', 'Online':'أونلاين',
+        'InstaPay':'انستا باي', 'E-wallet':'محفظة', 'Partial Cash':'جزء نقدي', 'Bank Points':'نقط بنك'
+      };
+      return m[method] || method;
+    }
+
+    function escapeHtml(s) {
+      return String(s).replace(/[&<>"']/g, c =>
+        ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+    }
+
+    function openHistory() {
+      document.getElementById('history-modal').classList.add('show');
+      loadHistory();
+    }
+    function closeHistory() {
+      document.getElementById('history-modal').classList.remove('show');
+    }
+
+    /* =====================================================================
+       14. EVENT WIRING — all listeners (no inline onclicks)
+       ===================================================================== */
+    function wireEvents() {
+      // --- Login ---
+      document.getElementById('btn-login').addEventListener('click', login);
+      document.getElementById('login-password').addEventListener('keydown', e => {
+        if (e.key === 'Enter') login();
+      });
+      document.getElementById('login-agent-id').addEventListener('keydown', e => {
+        if (e.key === 'Enter') document.getElementById('login-password').focus();
+      });
+
+      // --- Top bar ---
+      document.getElementById('btn-logout').addEventListener('click', logout);
+      document.getElementById('btn-history').addEventListener('click', openHistory);
+
+      // --- Camera / scanner ---
+      document.getElementById('btn-scan').addEventListener('click', () => toggleCamera('order-id'));
+      document.getElementById('btn-scan-receipt').addEventListener('click', () => toggleCamera('receipt-number'));
+      document.getElementById('btn-close-cam').addEventListener('click', stopCamera);
+      document.getElementById('btn-flash').addEventListener('click', toggleFlash);
+
+      // --- Verify ---
+      document.getElementById('btn-verify').addEventListener('click', verifyOrder);
+      document.getElementById('order-id').addEventListener('keydown', e => {
+        if (e.key === 'Enter') { e.preventDefault(); verifyOrder(); }
+      });
+
+      // --- Status cards (event delegation) ---
+      document.getElementById('status-grid').addEventListener('click', (e) => {
+        const card = e.target.closest('.status-card');
+        if (!card) return;
+        selectStatus(card.dataset.status);
+      });
+
+      // --- Submit ---
+      document.getElementById('btn-submit').addEventListener('click', submitConfirmation);
+
+      // --- Success → new order ---
+      document.getElementById('btn-new-order').addEventListener('click', () => {
+        resetForm(true);
+        showView('main');
+      });
+
+      // --- History modal ---
+      document.getElementById('btn-close-history').addEventListener('click', closeHistory);
+      document.getElementById('history-modal').addEventListener('click', (e) => {
+        if (e.target === e.currentTarget) closeHistory(); // bg click
+      });
+
+      // --- ESC closes modal / camera ---
+      document.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape') return;
+        if (document.getElementById('history-modal').classList.contains('show')) {
+          closeHistory();
+          return;
+        }
+        if (cameraOpen) stopCamera();
+      });
+    }
+
+   /* =====================================================================
+       15. APP INIT — session restore + view routing
+       ===================================================================== */
+    // إزالة window.addEventListener('load') والتشغيل المباشر
+    console.log('[Bloom Delivery] Build: 2026-05-13 — Arabic agent app v1.0');
+
+    wireEvents();
+
+    const restored = loadSession();
+    if (restored && restored.agent_id) {
+      _session   = restored;
+      _storeName = restored.store_name || '';
+      // Re-fetch store name in case it changed since session was saved
+      if (restored.store_id) {
+        try {
+          const s = await getDoc(doc(db, 'stores', restored.store_id));
+          if (s.exists()) {
+            _storeName = s.data().name || _storeName;
+            _session.store_name = _storeName;
+            saveSession(_session);
+          }
+        } catch(_) {}
+      }
+      renderTopBar();
+      showView('main');
+    } else {
+      showView('login');
+    }
+    });
+
+  </script>
+</body>
+</html>
