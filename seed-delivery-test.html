@@ -1,0 +1,449 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bloom Delivery — Seed Test Data</title>
+  <style>
+    :root {
+      --bloom: #b22025; --bloom-dark: #8b191d; --bloom-light: #fdf2f2;
+      --bg: #f4f4f6; --surface: #fff; --border: #e5e7eb; --text: #1a1a2e;
+      --muted: #6b7280; --success: #16a34a; --error: #dc2626; --warning: #d97706;
+      --info: #2563eb;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px 16px;
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.5;
+    }
+    .container { max-width: 980px; margin: 0 auto; }
+    h1 { color: var(--bloom); font-family: 'Sora', sans-serif; margin: 0 0 6px; font-size: 26px; }
+    .subtitle { color: var(--muted); margin-bottom: 20px; }
+    .card {
+      background: var(--surface); border-radius: 14px; padding: 20px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05); margin-bottom: 16px;
+    }
+    button {
+      background: var(--bloom); color: #fff; border: none; padding: 12px 22px;
+      border-radius: 10px; font-weight: 700; font-size: 14px; cursor: pointer;
+      transition: background 0.15s; margin: 0 6px 6px 0; min-height: 44px;
+    }
+    button:hover:not(:disabled) { background: var(--bloom-dark); }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+    button.btn-outline { background: #fff; color: var(--text); border: 1.5px solid var(--border); }
+    button.btn-success { background: var(--success); }
+    button.btn-success:hover:not(:disabled) { background: #15803d; }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; margin-top: 8px; }
+    th, td { padding: 8px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: top; }
+    th { background: #f9fafb; font-weight: 700; }
+    tr:hover td { background: #fafafa; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 99px; font-weight: 700; font-size: 11px; }
+    .badge.new       { background: #dcfce7; color: #14532d; }
+    .badge.update    { background: #fef3c7; color: #78350f; }
+    .badge.unchanged { background: #e5e7eb; color: #374151; }
+
+    .log {
+      background: #1a1a2e; color: #e5e7eb; padding: 14px; border-radius: 10px;
+      font-family: 'Courier New', monospace; font-size: 12px;
+      max-height: 380px; overflow-y: auto; white-space: pre-wrap; word-break: break-word;
+    }
+    .log .ok    { color: #4ade80; }
+    .log .skip  { color: #94a3b8; }
+    .log .info  { color: #60a5fa; }
+    .log .err   { color: #f87171; }
+    .log .warn  { color: #fbbf24; }
+
+    .stats { display: flex; gap: 18px; flex-wrap: wrap; margin: 12px 0; }
+    .stat { padding: 10px 16px; background: #f9fafb; border-radius: 10px; min-width: 130px; }
+    .stat-num { font-size: 22px; font-weight: 800; color: var(--bloom); }
+    .stat-label { font-size: 12px; color: var(--muted); }
+
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 12px; }
+
+    details { background: #fafafa; border-radius: 8px; padding: 10px 14px; margin-bottom: 8px; }
+    summary { cursor: pointer; font-weight: 700; }
+
+    .alert {
+      padding: 12px 14px; border-radius: 10px; margin-bottom: 14px; font-weight: 600;
+    }
+    .alert.warning { background: #fef3c7; color: #78350f; border: 1px solid #fde68a; }
+    .alert.info    { background: #dbeafe; color: #1e3a8a; border: 1px solid #93c5fd; }
+    .alert.success { background: #dcfce7; color: #14532d; border: 1px solid #86efac; }
+    .alert.error   { background: #fee2e2; color: #7f1d1d; border: 1px solid #fca5a5; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌸 Bloom Delivery — Test Data Seeder</h1>
+    <div class="subtitle">
+      Populates 9 stores, 36 zones, 9 staff users, and 18 delivery agents for testing the multi-branch flow.
+      Uses <code>setDoc(..., { merge: true })</code> so existing docs are not clobbered.
+    </div>
+
+    <div class="alert warning">
+      ⚠️ <strong>Important:</strong> This writes to the <code>bloom-delivery-f9540</code> Firebase project.
+      Firestore rules must temporarily allow writes to <code>/users</code> and <code>/agents</code> for the seed to run.
+      Restore strict rules immediately after seeding.
+    </div>
+
+    <div class="card">
+      <h3 style="margin: 0 0 10px;">Step 1 — Preview Changes</h3>
+      <div class="subtitle" style="margin: 0 0 12px;">
+        Reads current Firestore state and shows what will be added / updated / unchanged.
+        Nothing is written.
+      </div>
+      <button id="btn-preview">🔍 Preview Diff</button>
+      <button id="btn-write" class="btn-success" disabled>✍️ Write Changes (requires preview first)</button>
+    </div>
+
+    <div id="preview-output"></div>
+
+    <div class="card">
+      <h3 style="margin: 0 0 10px;">Execution Log</h3>
+      <div class="log" id="log">Ready. Click "Preview Diff" to begin.</div>
+    </div>
+
+    <div class="card">
+      <h3 style="margin: 0 0 10px;">📋 Test Credentials (after seeding)</h3>
+      <details open>
+        <summary>Handover staff (login at <code>handover.html</code> via 4-digit passcode)</summary>
+        <table id="creds-staff">
+          <thead><tr><th>Branch</th><th>Store ID</th><th>Passcode</th><th>Username</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </details>
+      <details open>
+        <summary>Delivery agents (login at <code>delivery.html</code> via Agent ID + password)</summary>
+        <table id="creds-agents">
+          <thead><tr><th>Branch</th><th>Store ID</th><th>Agent ID</th><th>Name</th><th>Password</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </details>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import {
+      getFirestore, doc, getDoc, setDoc, collection, getDocs
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getAuth, signInAnonymously }
+      from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyC6dO6F02hlsZ9XKaNgmhHCeFJ0cwhfg6o",
+      authDomain: "bloom-delivery-f9540.firebaseapp.com",
+      projectId: "bloom-delivery-f9540",
+      storageBucket: "bloom-delivery-f9540.firebasestorage.app",
+      messagingSenderId: "409469512995",
+      appId: "1:409469512995:web:74eb908a613f3f2c9a3096"
+    };
+
+    const app  = initializeApp(firebaseConfig);
+    const db   = getFirestore(app);
+    const auth = getAuth(app);
+    await signInAnonymously(auth);
+
+    /* ========================================================================
+       SEED DEFINITIONS
+       9 branches × (1 store + 4 zones + 1 staff + 2 agents) = 72 docs total
+       Passcodes chosen to NOT collide with existing 3664/5786/1256/etc.
+       Agent IDs chosen to NOT collide with existing AGT01..AGT09.
+       ======================================================================== */
+
+    const BRANCHES = [
+      { store_id: 'WN01', name: 'Wadi Al Nile',   prefix: 'WN', staffPasscode: '2001' },
+      { store_id: 'P902', name: 'Point 90',       prefix: 'P9', staffPasscode: '2002' },
+      { store_id: 'CA03', name: 'Capital',        prefix: 'CA', staffPasscode: '2003' },
+      { store_id: 'AL04', name: 'Almaza',         prefix: 'AL', staffPasscode: '2004' },
+      { store_id: 'MO05', name: 'Mall of Arabia', prefix: 'MO', staffPasscode: '2005' },
+      { store_id: 'UP06', name: 'Uptown',         prefix: 'UP', staffPasscode: '2006' },
+      { store_id: 'S307', name: 'Street 31',      prefix: 'SR', staffPasscode: '2007' },
+      { store_id: 'DP08', name: 'Diplo',          prefix: 'DP', staffPasscode: '2008' },
+      { store_id: 'OS05', name: 'Online Store',   prefix: 'OS', staffPasscode: '2009' }
+    ];
+
+    const ZONE_DEFAULTS = [
+      { id: 'zone_1', name: 'Zone 1', price: 25, sla_minutes: 60 },
+      { id: 'zone_2', name: 'Zone 2', price: 35, sla_minutes: 60 },
+      { id: 'zone_3', name: 'Zone 3', price: 45, sla_minutes: 60 },
+      { id: 'zone_4', name: 'Zone 4', price: 60, sla_minutes: 60 }
+    ];
+
+    const AGENT_PASSWORDS = ['2222', '3333']; // Driver 1 / Driver 2 per branch
+
+    /* ========================================================================
+       BUILD THE COMPLETE SEED PLAN
+       ======================================================================== */
+    function buildSeedPlan() {
+      const plan = { stores: [], zones: [], users: [], agents: [] };
+
+      BRANCHES.forEach(br => {
+        // 1 store per branch
+        plan.stores.push({
+          docId: br.store_id,
+          data: { name: br.name, active: true }
+        });
+
+        // 4 zones per branch
+        ZONE_DEFAULTS.forEach(z => {
+          plan.zones.push({
+            docId: `${z.id}_${br.store_id}`,
+            data: {
+              id: z.id,
+              name: z.name,
+              price: z.price,
+              sla_minutes: z.sla_minutes,
+              store_id: br.store_id
+            }
+          });
+        });
+
+        // 1 test handover staff per branch
+        plan.users.push({
+          docId: br.staffPasscode,
+          data: {
+            passcode: br.staffPasscode,
+            username: `${br.store_id}-Staff-1`,
+            store_id: br.store_id,
+            role: 'staff'
+          }
+        });
+
+        // 2 test delivery agents per branch
+        AGENT_PASSWORDS.forEach((pwd, idx) => {
+          const agentId = `${br.prefix}D0${idx + 1}`;
+          plan.agents.push({
+            docId: agentId,
+            data: {
+              name:     `${br.store_id} Delivery ${idx + 1}`,
+              store_id: br.store_id,
+              status:   'active',
+              password: pwd       // plain text — bcrypt migration deferred
+            }
+          });
+        });
+      });
+
+      return plan;
+    }
+
+    /* ========================================================================
+       READ CURRENT STATE → COMPUTE DIFF
+       ======================================================================== */
+    async function computeDiff(plan) {
+      const diffs = { stores: [], zones: [], users: [], agents: [] };
+
+      // Helper: read existing doc, classify NEW vs UPDATE vs UNCHANGED
+      async function classify(coll, item) {
+        const ref  = doc(db, coll, item.docId);
+        const snap = await getDoc(ref);
+        if (!snap.exists()) return { ...item, action: 'NEW', existing: null };
+        const existing = snap.data();
+        // Compare only the fields we plan to write (others are user-set, leave alone)
+        let same = true;
+        for (const k of Object.keys(item.data)) {
+          if (String(existing[k] ?? '') !== String(item.data[k] ?? '')) { same = false; break; }
+        }
+        return { ...item, action: same ? 'UNCHANGED' : 'UPDATE', existing };
+      }
+
+      for (const s of plan.stores) diffs.stores.push(await classify('stores', s));
+      for (const z of plan.zones)  diffs.zones.push (await classify('zones',  z));
+      for (const u of plan.users)  diffs.users.push (await classify('users',  u));
+      for (const a of plan.agents) diffs.agents.push(await classify('agents', a));
+
+      return diffs;
+    }
+
+    /* ========================================================================
+       APPLY THE DIFF (only writes NEW + UPDATE; skips UNCHANGED)
+       ======================================================================== */
+    async function applyDiff(diffs) {
+      const counts = { written: 0, skipped: 0, failed: 0 };
+
+      async function write(coll, items) {
+        for (const item of items) {
+          if (item.action === 'UNCHANGED') {
+            counts.skipped++;
+            logLine(`[SKIP] ${coll}/${item.docId} — unchanged`, 'skip');
+            continue;
+          }
+          try {
+            await setDoc(doc(db, coll, item.docId), item.data, { merge: true });
+            counts.written++;
+            logLine(`[${item.action}] ${coll}/${item.docId}`, 'ok');
+          } catch(err) {
+            counts.failed++;
+            logLine(`[FAIL] ${coll}/${item.docId} → ${err.message}`, 'err');
+          }
+        }
+      }
+
+      logLine('--- Writing stores ---', 'info');
+      await write('stores', diffs.stores);
+      logLine('--- Writing zones ---', 'info');
+      await write('zones',  diffs.zones);
+      logLine('--- Writing users ---', 'info');
+      await write('users',  diffs.users);
+      logLine('--- Writing agents ---', 'info');
+      await write('agents', diffs.agents);
+
+      return counts;
+    }
+
+    /* ========================================================================
+       UI
+       ======================================================================== */
+    let _diffs = null;
+
+    const logEl = document.getElementById('log');
+    function logClear() { logEl.innerHTML = ''; }
+    function logLine(msg, cls = '') {
+      const span = document.createElement('div');
+      if (cls) span.className = cls;
+      span.textContent = msg;
+      logEl.appendChild(span);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function renderPreview(diffs) {
+      const out = document.getElementById('preview-output');
+
+      const summary = (label, items) => {
+        const n = { new: 0, update: 0, unchanged: 0 };
+        items.forEach(i => n[i.action.toLowerCase()]++);
+        return { label, total: items.length, ...n, items };
+      };
+      const sections = [
+        summary('Stores', diffs.stores),
+        summary('Zones',  diffs.zones),
+        summary('Users (handover staff)',  diffs.users),
+        summary('Agents (delivery drivers)', diffs.agents)
+      ];
+
+      const totalNew      = sections.reduce((s, x) => s + x.new, 0);
+      const totalUpdate   = sections.reduce((s, x) => s + x.update, 0);
+      const totalUnchange = sections.reduce((s, x) => s + x.unchanged, 0);
+
+      let html = `
+        <div class="card">
+          <h3 style="margin:0 0 10px;">Step 2 — Diff Preview</h3>
+          <div class="stats">
+            <div class="stat"><div class="stat-num" style="color:var(--success)">${totalNew}</div><div class="stat-label">To create</div></div>
+            <div class="stat"><div class="stat-num" style="color:var(--warning)">${totalUpdate}</div><div class="stat-label">To update</div></div>
+            <div class="stat"><div class="stat-num" style="color:var(--muted)">${totalUnchange}</div><div class="stat-label">Unchanged (skip)</div></div>
+            <div class="stat"><div class="stat-num">${totalNew + totalUpdate + totalUnchange}</div><div class="stat-label">Total</div></div>
+          </div>
+      `;
+
+      sections.forEach(sec => {
+        html += `
+          <details ${sec.new + sec.update > 0 ? 'open' : ''}>
+            <summary>${sec.label} (${sec.total}) — New: ${sec.new}, Update: ${sec.update}, Unchanged: ${sec.unchanged}</summary>
+            <table>
+              <thead><tr><th>Doc ID</th><th>Action</th><th>Data</th></tr></thead>
+              <tbody>
+                ${sec.items.map(i => `
+                  <tr>
+                    <td><code>${i.docId}</code></td>
+                    <td><span class="badge ${i.action.toLowerCase()}">${i.action}</span></td>
+                    <td><code style="font-size:11px;">${JSON.stringify(i.data)}</code></td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </details>
+        `;
+      });
+
+      html += '</div>';
+      out.innerHTML = html;
+    }
+
+    function renderCredentialsTables() {
+      // Staff
+      const staffBody = document.querySelector('#creds-staff tbody');
+      staffBody.innerHTML = BRANCHES.map(br => `
+        <tr>
+          <td><strong>${br.name}</strong></td>
+          <td><code>${br.store_id}</code></td>
+          <td><code>${br.staffPasscode}</code></td>
+          <td>${br.store_id}-Staff-1</td>
+        </tr>
+      `).join('');
+
+      // Agents
+      const agentBody = document.querySelector('#creds-agents tbody');
+      const rows = [];
+      BRANCHES.forEach(br => {
+        AGENT_PASSWORDS.forEach((pwd, idx) => {
+          rows.push(`
+            <tr>
+              <td><strong>${br.name}</strong></td>
+              <td><code>${br.store_id}</code></td>
+              <td><code>${br.prefix}D0${idx + 1}</code></td>
+              <td>${br.store_id} Delivery ${idx + 1}</td>
+              <td><code>${pwd}</code></td>
+            </tr>
+          `);
+        });
+      });
+      agentBody.innerHTML = rows.join('');
+    }
+
+    /* ========================================================================
+       WIRE BUTTONS
+       ======================================================================== */
+    document.getElementById('btn-preview').addEventListener('click', async () => {
+      logClear();
+      logLine('Building seed plan...', 'info');
+      const plan = buildSeedPlan();
+      logLine(`Plan: ${plan.stores.length} stores, ${plan.zones.length} zones, ${plan.users.length} users, ${plan.agents.length} agents`, 'info');
+      logLine('Reading current Firestore state...', 'info');
+      try {
+        _diffs = await computeDiff(plan);
+        renderPreview(_diffs);
+        const totalChanges = ['stores','zones','users','agents']
+          .reduce((s, k) => s + _diffs[k].filter(i => i.action !== 'UNCHANGED').length, 0);
+        logLine(`Diff computed. ${totalChanges} changes pending.`, 'ok');
+        document.getElementById('btn-write').disabled = totalChanges === 0;
+        if (totalChanges === 0) logLine('Everything is already up to date.', 'ok');
+      } catch(err) {
+        logLine(`Error: ${err.message}`, 'err');
+        console.error(err);
+      }
+    });
+
+    document.getElementById('btn-write').addEventListener('click', async () => {
+      if (!_diffs) return;
+      if (!confirm('Write all NEW + UPDATE entries to Firestore?\n\nMake sure Firestore rules allow writes to /users and /agents.')) return;
+      logLine('--- Starting writes ---', 'info');
+      document.getElementById('btn-write').disabled = true;
+      document.getElementById('btn-preview').disabled = true;
+      try {
+        const counts = await applyDiff(_diffs);
+        logLine('', '');
+        logLine(`=== DONE ===`, 'ok');
+        logLine(`Written:  ${counts.written}`, 'ok');
+        logLine(`Skipped:  ${counts.skipped}`, 'skip');
+        logLine(`Failed:   ${counts.failed}`, counts.failed > 0 ? 'err' : 'ok');
+        if (counts.failed > 0) {
+          logLine('Some writes failed — likely Firestore rules blocking. Temporarily allow /users and /agents writes, then re-run.', 'warn');
+        }
+      } catch(err) {
+        logLine(`Fatal: ${err.message}`, 'err');
+        console.error(err);
+      } finally {
+        document.getElementById('btn-preview').disabled = false;
+      }
+    });
+
+    renderCredentialsTables();
+    console.log('[Bloom Seeder] Ready. Firebase project: bloom-delivery-f9540');
+  </script>
+</body>
+</html>
