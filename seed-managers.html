@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seed Store Managers — Bloom Delivery</title>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bloom: #b22025;
+      --bloom-dark: #8b191d;
+      --bloom-light: #fdf2f2;
+      --bg: #f4f4f6;
+      --surface: #ffffff;
+      --border: #e5e7eb;
+      --text: #1a1a2e;
+      --muted: #6b7280;
+      --success: #16a34a;
+      --error: #dc2626;
+      --info: #2563eb;
+      --warning: #d97706;
+    }
+    * { box-sizing: border-box; }
+    body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text); margin: 0; padding: 20px; }
+    .container { max-width: 920px; margin: 0 auto; }
+    h1 { font-family: 'Sora', sans-serif; font-weight: 800; color: var(--bloom); margin-bottom: 4px; }
+    .subtitle { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+    .card { background: var(--surface); border-radius: 14px; padding: 22px; box-shadow: 0 4px 16px rgba(0,0,0,.06); margin-bottom: 18px; }
+    .card h2 { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 700; margin: 0 0 12px 0; color: var(--text); }
+    .btn { padding: 11px 22px; border: none; border-radius: 10px; font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 600; cursor: pointer; transition: opacity .15s; }
+    .btn:hover { opacity: .9; }
+    .btn:disabled { opacity: .5; cursor: not-allowed; }
+    .btn-bloom { background: var(--bloom); color: white; }
+    .btn-outline { background: white; color: var(--text); border: 1.5px solid var(--border); }
+    .btn-success { background: var(--success); color: white; }
+    .toolbar { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    th, td { padding: 9px 10px; border-bottom: 1px solid var(--border); text-align: left; }
+    th { background: var(--bg); font-family: 'Sora', sans-serif; font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); }
+    td.action { font-weight: 600; }
+    .action-new      { color: var(--success); }
+    .action-update   { color: var(--info); }
+    .action-skip     { color: var(--muted); }
+    .action-conflict { color: var(--error); }
+    .log { background: #1a1a2e; color: #d1d5db; font-family: 'Courier New', monospace; font-size: 12px; padding: 14px; border-radius: 8px; max-height: 320px; overflow-y: auto; white-space: pre-wrap; }
+    .log .ok    { color: #6ee7b7; }
+    .log .warn  { color: #fcd34d; }
+    .log .err   { color: #fca5a5; }
+    .badge { padding: 3px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; display: inline-block; }
+    .b-new      { background: #dcfce7; color: #14532d; }
+    .b-update   { background: #dbeafe; color: #1e3a8a; }
+    .b-skip     { background: #f3f4f6; color: #6b7280; }
+    .b-conflict { background: #fee2e2; color: #7f1d1d; }
+    .alert { padding: 14px 18px; border-radius: 10px; margin-bottom: 16px; border-left: 4px solid; font-size: 14px; line-height: 1.6; }
+    .alert-warn  { background: #fef3c7; border-color: var(--warning); color: #78350f; }
+    .alert-info  { background: #dbeafe; border-color: var(--info);    color: #1e3a8a; }
+    .alert-ok    { background: #dcfce7; border-color: var(--success); color: #14532d; }
+    .alert-err   { background: #fee2e2; border-color: var(--error);   color: #7f1d1d; }
+    code { background: var(--bloom-light); color: var(--bloom); padding: 1px 6px; border-radius: 4px; font-family: 'Courier New', monospace; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🌸 Seed Store Managers — Delivery</h1>
+    <p class="subtitle">Adds the 9 store managers to <code>bloom-delivery-f9540 → /users</code> so they can log into handover.html and admin.html with their existing Customer Care passcodes.</p>
+
+    <div class="alert alert-warn">
+      <strong>⚠️ Prerequisite:</strong> Firestore rules on <code>/users</code> must allow writes. Temporarily change the rule to <code>allow write: if request.auth != null;</code>, run this seeder, then restore the strict rule.
+    </div>
+
+    <div class="alert alert-info">
+      <strong>ℹ️ Conflict resolution:</strong> Passcode <code>1256</code> is currently used by staff <code>S.Adel</code> (store_01). It's also the CC password for manager <code>S.adel</code> (Online Store / OS05). The seeder will preview both rows and let you choose: KEEP staff S.Adel (manager OS05 gets a new auto-passcode <code>1257</code>) or MOVE staff S.Adel to <code>3261</code> and let OS05 manager use <code>1256</code>.
+    </div>
+
+    <div class="card">
+      <h2>Step 1 — Preview</h2>
+      <div class="toolbar">
+        <button class="btn btn-bloom" id="btn-preview">🔍 Preview changes</button>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer">
+          <input type="radio" name="conflict" value="keep-staff" checked>
+          Keep staff S.Adel/1256 → manager S.adel gets <code>1257</code>
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer">
+          <input type="radio" name="conflict" value="move-staff">
+          Move staff S.Adel → <code>3261</code>, manager S.adel keeps <code>1256</code>
+        </label>
+      </div>
+      <div id="preview-area"><em style="color:var(--muted)">Click Preview to load current Firestore state.</em></div>
+    </div>
+
+    <div class="card">
+      <h2>Step 2 — Commit</h2>
+      <div class="toolbar">
+        <button class="btn btn-success" id="btn-commit" disabled>✓ Commit changes to Firestore</button>
+        <span style="font-size:12px;color:var(--muted)">Disabled until preview runs successfully.</span>
+      </div>
+      <div id="commit-area"></div>
+    </div>
+
+    <div class="card">
+      <h2>Console log</h2>
+      <div class="log" id="log">Ready. Click "Preview" to start.</div>
+    </div>
+  </div>
+
+  <script type="module">
+    console.log('[Seed Managers] Build: 2026-05-14');
+
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+    import {
+      getFirestore, doc, getDoc, setDoc, deleteDoc, collection, getDocs
+    } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+    import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+
+    const app = initializeApp({
+      apiKey: "AIzaSyC6dO6F02hlsZ9XKaNgmhHCeFJ0cwhfg6o",
+      authDomain: "bloom-delivery-f9540.firebaseapp.com",
+      projectId: "bloom-delivery-f9540",
+      storageBucket: "bloom-delivery-f9540.firebasestorage.app",
+      messagingSenderId: "409469512995",
+      appId: "1:409469512995:web:74eb908a613f3f2c9a3096"
+    });
+    const db   = getFirestore(app);
+    const auth = getAuth(app);
+    await signInAnonymously(auth);
+
+    /* The 9 store managers + their CC passcodes (from AI_CONTEXT.md §11)
+       role = "store_admin" gives them delete permissions in handover.html
+       and access to admin.html (when built). */
+    const MANAGERS = [
+      { username: 'a.saeid',    passcode: '3927', store_id: 'WN01', store_name: 'Wadi Al Nile',   email: 'a.saied@bloom.com.eg' },
+      { username: 'e.omran',    passcode: '8104', store_id: 'P902', store_name: 'Point 90',       email: 'e.omran@bloom.com.eg' },
+      { username: 'o.sameh',    passcode: '5592', store_id: 'CA03', store_name: 'Capital',        email: 'o.sameh@bloom.com.eg' },
+      { username: 'b.ibrahim',  passcode: '1738', store_id: 'AL04', store_name: 'Almaza',         email: 'b.ibrahim@bloom.com.eg' },
+      { username: 'n.ahmed',    passcode: '6041', store_id: 'MO05', store_name: 'Mall of Arabia', email: 'n.ahmed@bloom.com.eg' },
+      { username: 'm.emaad',    passcode: '9283', store_id: 'UP06', store_name: 'Uptown',         email: 'm.emaad@bloom.com.eg' },
+      { username: 'a.dory',     passcode: '4416', store_id: 'S307', store_name: 'Street 31',      email: 'a.dory@bloom.com.eg' },
+      { username: 'a.elshamaa', passcode: '2075', store_id: 'DP08', store_name: 'Diplo',          email: 'a.elshamaa@bloom.com.eg' },
+      { username: 'S.adel',     passcode: '1256', store_id: 'OS05', store_name: 'Online Store',   email: 'customersupport@bloompharmacy.com' }
+    ];
+
+    /* The conflicting staff user that may need to move. Original entry from
+       AI_CONTEXT.md §11: passcode 1256 → S.Adel (store_01, role=staff). */
+    const CONFLICTING_STAFF = { oldPasscode: '1256', newPasscode: '3261', username: 'S.Adel', store_id: 'store_01', role: 'staff' };
+
+    let _previewPlan = null;
+
+    const logEl = document.getElementById('log');
+    function log(msg, cls) {
+      const ts = new Date().toLocaleTimeString();
+      const span = document.createElement('span');
+      if (cls) span.className = cls;
+      span.textContent = '[' + ts + '] ' + msg + '\n';
+      logEl.appendChild(span);
+      logEl.scrollTop = logEl.scrollHeight;
+    }
+
+    function getConflictChoice() {
+      return document.querySelector('input[name="conflict"]:checked').value;
+    }
+
+    /** Build the plan: for each manager, decide NEW / UPDATE / SKIP / CONFLICT. */
+    async function buildPlan() {
+      const choice = getConflictChoice();
+      log('Conflict-handling mode: ' + choice, 'warn');
+
+      const plan = { rows: [], deletes: [] };
+
+      // Decide final passcode for OS05 manager based on conflict choice
+      const managers = MANAGERS.map(m => ({ ...m }));
+      if (choice === 'keep-staff') {
+        // OS05 manager moves to 1257 (next free); staff S.Adel stays on 1256
+        const os05 = managers.find(m => m.store_id === 'OS05');
+        os05.passcode = '1257';
+        log('OS05 manager S.adel will use passcode 1257 (keeping staff 1256 untouched)', 'warn');
+      } else {
+        // Move staff S.Adel from 1256 → 3261; manager keeps 1256
+        log('Staff S.Adel will move from 1256 → 3261; manager S.adel keeps 1256', 'warn');
+      }
+
+      // For each manager, check current Firestore state
+      for (const m of managers) {
+        const ref = doc(db, 'users', m.passcode);
+        const snap = await getDoc(ref);
+        const desired = {
+          passcode:   m.passcode,
+          username:   m.username,
+          store_id:   m.store_id,
+          store_name: m.store_name,
+          email:      m.email,
+          role:       'store_admin'
+        };
+        if (!snap.exists()) {
+          plan.rows.push({ passcode: m.passcode, action: 'NEW', desired, existing: null });
+        } else {
+          const existing = snap.data();
+          // Same passcode owned by someone else? That's a conflict the seeder shouldn't silently overwrite.
+          // EXCEPT for the staff S.Adel slot when user chose "move-staff" — that's intentional.
+          const isMatchingManager = existing.username === m.username && existing.role === 'store_admin';
+          if (isMatchingManager) {
+            // Update only if any field differs
+            const changed = ['username','store_id','store_name','email','role']
+              .some(k => existing[k] !== desired[k]);
+            plan.rows.push({ passcode: m.passcode, action: changed ? 'UPDATE' : 'SKIP', desired, existing });
+          } else if (m.passcode === CONFLICTING_STAFF.oldPasscode && choice === 'move-staff') {
+            // Manager S.adel taking over 1256 — intentional overwrite (we move staff first)
+            plan.rows.push({ passcode: m.passcode, action: 'OVERWRITE-AFTER-MOVE', desired, existing });
+          } else {
+            plan.rows.push({ passcode: m.passcode, action: 'CONFLICT', desired, existing });
+          }
+        }
+      }
+
+      // Handle staff move (if "move-staff" mode)
+      if (choice === 'move-staff') {
+        const oldRef = doc(db, 'users', CONFLICTING_STAFF.oldPasscode);
+        const oldSnap = await getDoc(oldRef);
+        if (oldSnap.exists() && oldSnap.data().username === CONFLICTING_STAFF.username) {
+          const newRef = doc(db, 'users', CONFLICTING_STAFF.newPasscode);
+          const newSnap = await getDoc(newRef);
+          if (newSnap.exists()) {
+            plan.rows.push({
+              passcode: CONFLICTING_STAFF.newPasscode,
+              action: 'CONFLICT',
+              desired: { ...CONFLICTING_STAFF, passcode: CONFLICTING_STAFF.newPasscode },
+              existing: newSnap.data(),
+              note: 'Target passcode for staff S.Adel is taken — choose another.'
+            });
+          } else {
+            plan.rows.push({
+              passcode: CONFLICTING_STAFF.newPasscode,
+              action: 'NEW',
+              desired: { ...CONFLICTING_STAFF, passcode: CONFLICTING_STAFF.newPasscode },
+              existing: null,
+              note: 'Staff S.Adel re-created at new passcode'
+            });
+            plan.deletes.push(CONFLICTING_STAFF.oldPasscode); // remove old slot
+          }
+        } else {
+          log('Note: staff S.Adel/1256 not found in /users — nothing to move', 'warn');
+        }
+      }
+
+      return plan;
+    }
+
+    function renderPreview(plan) {
+      const counts = { NEW:0, UPDATE:0, SKIP:0, CONFLICT:0, 'OVERWRITE-AFTER-MOVE':0 };
+      plan.rows.forEach(r => counts[r.action]++);
+      const totalChanges = counts.NEW + counts.UPDATE + counts['OVERWRITE-AFTER-MOVE'];
+
+      const rowsHtml = plan.rows.map(r => {
+        const a = r.action;
+        const cls = a === 'NEW' ? 'b-new' :
+                    a === 'UPDATE' ? 'b-update' :
+                    a === 'SKIP' ? 'b-skip' :
+                    a === 'OVERWRITE-AFTER-MOVE' ? 'b-update' :
+                    'b-conflict';
+        const desc = a === 'CONFLICT'
+          ? ('Existing: <code>' + (r.existing?.username || '?') + '</code> (' + (r.existing?.role || '?') + ')' + (r.note ? ' — ' + r.note : ''))
+          : (a === 'OVERWRITE-AFTER-MOVE' ? '<em>Old occupant moved/removed; manager takes this passcode</em>' : (r.note || ''));
+        return '<tr>' +
+          '<td><code>' + r.passcode + '</code></td>' +
+          '<td>' + r.desired.username + '</td>' +
+          '<td>' + (r.desired.store_id || '-') + '</td>' +
+          '<td>' + (r.desired.store_name || '-') + '</td>' +
+          '<td><span class="badge ' + cls + '">' + a + '</span></td>' +
+          '<td style="font-size:12px;color:var(--muted)">' + desc + '</td>' +
+          '</tr>';
+      }).join('');
+
+      const deletesHtml = plan.deletes.length
+        ? '<p style="font-size:13px;color:var(--muted);margin-top:14px"><strong>Deletes:</strong> ' + plan.deletes.map(p => '<code>/users/' + p + '</code>').join(', ') + '</p>'
+        : '';
+
+      document.getElementById('preview-area').innerHTML =
+        '<p style="font-size:13px;margin:0 0 10px"><strong>Summary:</strong> ' +
+          counts.NEW + ' new · ' + counts.UPDATE + ' update · ' + counts.SKIP + ' unchanged · ' +
+          counts['OVERWRITE-AFTER-MOVE'] + ' overwrite-after-move · ' +
+          '<span style="color:var(--error)">' + counts.CONFLICT + ' conflict</span></p>' +
+        '<table><thead><tr><th>Passcode</th><th>Username</th><th>Store ID</th><th>Store</th><th>Action</th><th>Details</th></tr></thead><tbody>' +
+        rowsHtml + '</tbody></table>' + deletesHtml;
+
+      const btnCommit = document.getElementById('btn-commit');
+      if (counts.CONFLICT > 0) {
+        btnCommit.disabled = true;
+        log('Cannot commit — ' + counts.CONFLICT + ' conflict(s) must be resolved first', 'err');
+      } else if (totalChanges === 0 && plan.deletes.length === 0) {
+        btnCommit.disabled = true;
+        log('Nothing to commit — all 9 managers already match desired state', 'ok');
+      } else {
+        btnCommit.disabled = false;
+        log('Ready to commit: ' + totalChanges + ' writes' + (plan.deletes.length ? ' + ' + plan.deletes.length + ' deletes' : ''), 'ok');
+      }
+    }
+
+    async function commitPlan() {
+      if (!_previewPlan) return;
+      const btn = document.getElementById('btn-commit');
+      btn.disabled = true;
+      log('Starting commit...', 'warn');
+      let ok = 0, fail = 0;
+
+      // Process deletes first (frees up passcodes for overwrites)
+      for (const p of _previewPlan.deletes) {
+        try {
+          await deleteDoc(doc(db, 'users', p));
+          log('  ✓ Deleted /users/' + p, 'ok');
+          ok++;
+        } catch(e) {
+          log('  ✗ Delete /users/' + p + ' failed: ' + e.message, 'err');
+          fail++;
+        }
+      }
+
+      // Then writes
+      for (const r of _previewPlan.rows) {
+        if (r.action === 'SKIP' || r.action === 'CONFLICT') continue;
+        try {
+          await setDoc(doc(db, 'users', r.passcode), r.desired, { merge: true });
+          log('  ✓ Wrote /users/' + r.passcode + ' (' + r.desired.username + ')', 'ok');
+          ok++;
+        } catch(e) {
+          log('  ✗ Write /users/' + r.passcode + ' failed: ' + e.message, 'err');
+          fail++;
+        }
+      }
+
+      log('Done: ' + ok + ' ops succeeded, ' + fail + ' failed', fail === 0 ? 'ok' : 'err');
+      document.getElementById('commit-area').innerHTML =
+        '<div class="alert ' + (fail === 0 ? 'alert-ok' : 'alert-err') + '">' +
+          (fail === 0 ? '✅ All operations succeeded. ' : '⚠ Completed with errors. ') +
+          ok + ' wrote, ' + fail + ' failed. ' +
+          (fail === 0 ? '<br><br><strong>Next step:</strong> restore strict Firestore rules.' : '') +
+        '</div>';
+    }
+
+    document.getElementById('btn-preview').addEventListener('click', async () => {
+      const btn = document.getElementById('btn-preview');
+      btn.disabled = true;
+      log('Fetching current Firestore state...', 'warn');
+      try {
+        _previewPlan = await buildPlan();
+        renderPreview(_previewPlan);
+      } catch(e) {
+        log('Preview failed: ' + e.message, 'err');
+        console.error(e);
+      } finally {
+        btn.disabled = false;
+      }
+    });
+
+    document.getElementById('btn-commit').addEventListener('click', commitPlan);
+
+    log('Connected to bloom-delivery-f9540', 'ok');
+  </script>
+</body>
+</html>
