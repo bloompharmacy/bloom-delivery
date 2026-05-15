@@ -1,0 +1,3239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#b22025" />
+  <title>Bloom — Delivery Manager</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+  <style>
+    :root {
+      --bloom:#b22025; --bloom-dark:#8b191d; --bloom-light:#fdf2f2;
+      --bg:#f6f6f8; --surface:#ffffff; --surface-2:#fafafa;
+      --border:#e5e7eb; --border-2:#d1d5db;
+      --text:#1a1a2e; --muted:#6b7280;
+      --success:#16a34a; --success-bg:#dcfce7;
+      --error:#dc2626; --error-bg:#fee2e2;
+      --info:#2563eb; --info-bg:#dbeafe;
+      --warning:#d97706; --warning-bg:#fef3c7;
+      --purple:#7c3aed; --purple-bg:#ede9fe;
+      --radius:12px; --radius-lg:20px; --radius-sm:8px; --radius-full:100px;
+      --shadow-sm:0 1px 2px rgba(0,0,0,0.05);
+      --shadow:0 2px 12px rgba(0,0,0,0.07);
+      --shadow-md:0 4px 20px rgba(0,0,0,0.10);
+      --shadow-lg:0 8px 24px rgba(0,0,0,0.12);
+      --font-head:'Sora',system-ui,-apple-system,sans-serif;
+      --font-body:'DM Sans',system-ui,-apple-system,sans-serif;
+      --font-mono:'Courier New',ui-monospace,monospace;
+      --sidebar-w:240px;
+    }
+    *,*::before,*::after { box-sizing:border-box; margin:0; padding:0; }
+    html { -webkit-text-size-adjust:100%; }
+    body { font-family:var(--font-body); background:var(--bg); color:var(--text); min-height:100vh; font-size:14px; line-height:1.5; -webkit-tap-highlight-color:transparent; -webkit-font-smoothing:antialiased; }
+    button { font-family:inherit; cursor:pointer; }
+    input,select,textarea { font-family:inherit; }
+    h1,h2,h3,h4 { font-family:var(--font-head); margin:0; line-height:1.3; }
+
+    .view { display:none; }
+    .view.active { display:block; }
+
+    /* LOGIN
+       Note on stacking bug fix (P0-3, Session 6):
+       The base `#view-login` rule must NOT declare `display:flex` directly —
+       its ID specificity would beat `.view { display:none }`, leaving the
+       login view permanently visible even when only `#view-app.active` is
+       set. Display is delegated entirely to the `.active` state. */
+    #view-login { min-height:100vh; align-items:center; justify-content:center; padding:24px; background:linear-gradient(135deg,var(--bg) 0%,var(--bloom-light) 100%); }
+    #view-login.active { display:flex; }
+    .login-card { background:var(--surface); border-radius:var(--radius-lg); box-shadow:var(--shadow-md); padding:40px 32px; width:100%; max-width:400px; text-align:center; }
+    .login-logo-wrap { margin:0 auto 18px; }
+    .login-logo-img { width:140px; height:auto; object-fit:contain; }
+    .login-title { font-family:var(--font-head); font-size:22px; font-weight:700; color:var(--text); margin-bottom:4px; }
+    .login-sub { color:var(--muted); font-size:13px; margin-bottom:24px; }
+    .pin-input { width:100%; padding:16px; font-size:22px; letter-spacing:8px; text-align:center; border:2px solid var(--border); border-radius:var(--radius-full); outline:none; font-family:var(--font-head); transition:border-color .2s,box-shadow .2s; }
+    .pin-input:focus { border-color:var(--bloom); box-shadow:0 0 0 3px rgba(178,32,37,.10); }
+    .btn-login { width:100%; padding:16px; background:var(--bloom); color:#fff; border:none; border-radius:var(--radius-full); font-family:var(--font-head); font-size:15px; font-weight:600; cursor:pointer; margin-top:14px; box-shadow:0 4px 16px rgba(178,32,37,.25); transition:background .2s; }
+    .btn-login:hover { background:var(--bloom-dark); }
+    .btn-login:disabled { opacity:.55; cursor:not-allowed; }
+    .login-error { color:var(--error); font-size:13px; margin-top:12px; display:none; font-weight:500; }
+    .login-error.show { display:block; }
+    .login-foot { margin-top:22px; font-size:11px; color:var(--muted); }
+
+    /* APP SHELL — same pattern: base rule has no display, only the .active
+       variant enables the flex layout. */
+    #view-app { min-height:100vh; }
+    #view-app.active { display:flex; }
+    .sidebar { width:var(--sidebar-w); background:var(--surface); border-right:1px solid var(--border); padding:18px 0; flex-shrink:0; position:sticky; top:0; height:100vh; overflow-y:auto; z-index:50; transition:transform .25s ease; }
+    .sidebar-brand { display:flex; align-items:center; gap:10px; padding:0 18px 18px; border-bottom:1px solid var(--border); margin-bottom:14px; }
+    .sidebar-brand svg { width:38px; height:38px; border-radius:8px; }
+    .sidebar-brand-text { line-height:1.2; }
+    .sidebar-brand-text strong { font-family:var(--font-head); font-size:14px; color:var(--text); display:block; }
+    .sidebar-brand-text span { font-size:11px; color:var(--muted); }
+    .nav-item { display:flex; align-items:center; gap:12px; padding:11px 18px; color:var(--muted); font-weight:600; font-size:13px; cursor:pointer; border-left:3px solid transparent; transition:background .15s,color .15s; font-family:var(--font-head); text-decoration:none; }
+    .nav-item:hover { background:var(--bloom-light); color:var(--bloom); }
+    .nav-item.active { background:var(--bloom-light); color:var(--bloom); border-left-color:var(--bloom); }
+    .nav-item .ico { font-size:16px; width:20px; text-align:center; }
+    .nav-section { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--muted); padding:14px 18px 6px; opacity:.7; }
+    .sidebar-footer { padding:16px 18px; border-top:1px solid var(--border); margin-top:14px; }
+    .user-chip { display:flex; align-items:center; gap:10px; padding:8px; background:var(--surface-2); border-radius:var(--radius); margin-bottom:8px; }
+    .user-avatar { width:32px; height:32px; border-radius:50%; background:var(--bloom); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:700; font-family:var(--font-head); font-size:13px; flex-shrink:0; }
+    .user-chip-info { min-width:0; flex:1; }
+    .user-chip-name { font-size:12px; font-weight:700; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+    .user-chip-role { font-size:10px; color:var(--bloom); font-weight:600; }
+    .btn-logout { width:100%; padding:8px; background:transparent; border:1.5px solid var(--border); border-radius:var(--radius-full); font-size:12px; color:var(--muted); cursor:pointer; font-weight:600; font-family:var(--font-head); transition:border-color .15s,color .15s; }
+    .btn-logout:hover { border-color:var(--error); color:var(--error); }
+
+    .main { flex:1; min-width:0; display:flex; flex-direction:column; }
+    .topbar { background:var(--surface); padding:12px 22px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; gap:14px; position:sticky; top:0; z-index:40; }
+    .topbar-title { font-family:var(--font-head); font-size:18px; font-weight:700; color:var(--text); }
+    .topbar-actions { display:flex; gap:8px; align-items:center; }
+    .btn-mobile-menu { display:none; background:transparent; border:1.5px solid var(--border); border-radius:8px; width:38px; height:38px; font-size:18px; color:var(--text); align-items:center; justify-content:center; }
+    .content { padding:22px; max-width:100%; overflow-x:hidden; }
+
+    .tab-panel { display:none; animation:fadeIn .15s; }
+    .tab-panel.active { display:block; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:none; } }
+
+    /* KPI cards */
+    .kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:22px; }
+    .kpi { background:var(--surface); border-radius:var(--radius); padding:16px; box-shadow:var(--shadow-sm); border:1px solid var(--border); transition:transform .15s,box-shadow .15s; position:relative; }
+    .kpi:hover { transform:translateY(-2px); box-shadow:var(--shadow); }
+    .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:8px; }
+    .kpi-value { font-family:var(--font-head); font-size:26px; font-weight:800; color:var(--text); line-height:1.1; }
+    .kpi-value.bloom { color:var(--bloom); }
+    .kpi-value.success { color:var(--success); }
+    .kpi-value.warning { color:var(--warning); }
+    .kpi-value.error { color:var(--error); }
+    .kpi-value.info { color:var(--info); }
+    .kpi-sub { font-size:11px; color:var(--muted); margin-top:6px; font-weight:500; }
+    .kpi-ico { position:absolute; top:14px; right:14px; font-size:22px; opacity:.35; }
+
+    /* Panels */
+    .panel { background:var(--surface); border-radius:var(--radius); padding:18px; box-shadow:var(--shadow-sm); border:1px solid var(--border); margin-bottom:16px; }
+    .panel-head { display:flex; align-items:flex-start; justify-content:space-between; gap:12px; margin-bottom:14px; flex-wrap:wrap; }
+    .panel-title { font-family:var(--font-head); font-size:15px; font-weight:700; color:var(--text); }
+    .panel-sub { font-size:12px; color:var(--muted); margin-top:2px; }
+
+    /* Filter bar */
+    .filter-bar { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; margin-bottom:12px; }
+    .filter-field { display:flex; flex-direction:column; gap:4px; }
+    .filter-field label { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); }
+    .filter-input { padding:9px 11px; border:1.5px solid var(--border); border-radius:8px; font-size:13px; background:var(--surface); outline:none; color:var(--text); transition:border-color .15s,box-shadow .15s; font-family:var(--font-body); min-height:36px; width:100%; }
+    .filter-input:focus { border-color:var(--bloom); box-shadow:0 0 0 3px rgba(178,32,37,.08); }
+    .filter-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    .preset-row { display:flex; gap:6px; flex-wrap:wrap; margin-bottom:10px; }
+    .preset-btn { padding:6px 12px; background:var(--surface-2); border:1.5px solid var(--border); border-radius:var(--radius-full); font-size:12px; font-weight:600; color:var(--muted); cursor:pointer; font-family:var(--font-head); transition:all .15s; }
+    .preset-btn:hover { border-color:var(--bloom); color:var(--bloom); }
+    .preset-btn.active { background:var(--bloom); border-color:var(--bloom); color:#fff; }
+
+    /* Buttons */
+    .btn { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:9px 14px; border:1.5px solid transparent; border-radius:8px; font-family:var(--font-head); font-weight:600; font-size:13px; cursor:pointer; transition:all .15s ease; min-height:36px; white-space:nowrap; }
+    .btn:disabled { opacity:.55; cursor:not-allowed; }
+    .btn-primary { background:var(--bloom); color:#fff; }
+    .btn-primary:hover:not(:disabled) { background:var(--bloom-dark); }
+    .btn-success { background:var(--success); color:#fff; }
+    .btn-success:hover:not(:disabled) { background:#15803d; }
+    .btn-info { background:var(--info); color:#fff; }
+    .btn-info:hover:not(:disabled) { background:#1d4ed8; }
+    .btn-warning { background:var(--warning); color:#fff; }
+    .btn-warning:hover:not(:disabled) { background:#b45309; }
+    .btn-danger { background:var(--error); color:#fff; }
+    .btn-danger:hover:not(:disabled) { background:#b91c1c; }
+    .btn-outline { background:var(--surface); color:var(--text); border-color:var(--border); }
+    .btn-outline:hover:not(:disabled) { border-color:var(--bloom-dark); color:var(--bloom); }
+    .btn-ghost { background:transparent; color:var(--muted); border-color:transparent; }
+    .btn-ghost:hover:not(:disabled) { background:var(--bloom-light); color:var(--bloom); }
+    .btn-sm { padding:6px 10px; font-size:12px; min-height:30px; }
+    .btn-icon { width:32px; height:32px; padding:0; min-height:32px; border-radius:6px; }
+
+    /* Data table */
+    .table-wrap { background:var(--surface); border-radius:var(--radius); border:1px solid var(--border); overflow:hidden; }
+    .table-scroll { overflow-x:auto; }
+    table.data { width:100%; border-collapse:collapse; font-size:13px; min-width:1100px; }
+    table.data th { background:var(--surface-2); padding:11px 12px; font-family:var(--font-head); font-weight:600; text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); border-bottom:1px solid var(--border); white-space:nowrap; position:sticky; top:0; cursor:pointer; user-select:none; }
+    table.data th[data-sort] { cursor:pointer; }
+    table.data th:not([data-sort]) { cursor:default; }
+    table.data th .sort-arrow { font-size:10px; opacity:.5; margin-left:4px; }
+    table.data th.sorted { color:var(--bloom); }
+    table.data th.sorted .sort-arrow { opacity:1; }
+    table.data td { padding:10px 12px; border-bottom:1px solid var(--border); white-space:nowrap; color:var(--text); vertical-align:middle; }
+    table.data tbody tr { transition:background .1s; }
+    table.data tbody tr:hover { background:var(--surface-2); }
+    table.data tbody tr.voided { background:#fef2f2; color:var(--muted); }
+    table.data tbody tr.voided td:not(.action-cell) { opacity:.6; }
+    table.data .order-id { font-family:var(--font-mono); font-weight:700; color:var(--text); }
+    table.data .num-cell { text-align:right; font-family:var(--font-mono); font-weight:600; }
+    .table-foot { padding:12px 16px; display:flex; align-items:center; justify-content:space-between; border-top:1px solid var(--border); background:var(--surface-2); flex-wrap:wrap; gap:10px; }
+    .pagination { display:flex; gap:4px; align-items:center; flex-wrap:wrap; }
+    .pagination .btn-sm { min-width:32px; }
+    .pagination .pg-info { font-size:12px; color:var(--muted); padding:0 10px; font-family:var(--font-head); }
+
+    /* Badges */
+    .badge { display:inline-block; padding:3px 9px; font-size:11px; font-weight:700; border-radius:var(--radius-full); white-space:nowrap; font-family:var(--font-head); }
+    .b-handed { background:var(--info-bg); color:#1e40af; }
+    .b-delivered { background:var(--success-bg); color:#065f46; }
+    .b-partial { background:#fef9c3; color:#854d0e; }
+    .b-returned { background:var(--error-bg); color:#991b1b; }
+    .b-noanswer { background:#ffedd5; color:#9a3412; }
+    .b-postponed { background:var(--purple-bg); color:#5b21b6; }
+    .b-voided { background:#f3f4f6; color:var(--muted); }
+    .b-ontime { background:var(--success-bg); color:#065f46; }
+    .b-delayed { background:var(--warning-bg); color:#78350f; }
+    .b-active { background:var(--success-bg); color:#065f46; }
+    .b-inactive { background:#f3f4f6; color:var(--muted); }
+    .b-pending { background:var(--warning-bg); color:#78350f; }
+    .b-approved { background:var(--success-bg); color:#065f46; }
+    .b-rejected { background:var(--error-bg); color:#991b1b; }
+
+    /* Modal */
+    .modal-back { display:none; position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:9000; align-items:center; justify-content:center; padding:16px; }
+    .modal-back.show { display:flex; }
+    .modal { background:var(--surface); border-radius:var(--radius-lg); width:100%; max-width:540px; max-height:90vh; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); }
+    .modal-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--border); }
+    .modal-title { font-family:var(--font-head); font-size:16px; font-weight:700; }
+    .modal-close { background:transparent; border:none; font-size:22px; color:var(--muted); cursor:pointer; line-height:1; padding:4px 10px; border-radius:6px; }
+    .modal-close:hover { background:var(--surface-2); color:var(--text); }
+    .modal-body { padding:18px 20px; overflow-y:auto; flex:1; }
+    .modal-foot { padding:12px 20px; border-top:1px solid var(--border); display:flex; justify-content:flex-end; gap:8px; background:var(--surface-2); flex-wrap:wrap; }
+    .form-group { margin-bottom:14px; }
+    .form-label { display:block; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin-bottom:6px; }
+    .form-control { width:100%; padding:10px 12px; border:1.5px solid var(--border); border-radius:8px; font-size:14px; background:var(--surface); outline:none; transition:border-color .15s; font-family:var(--font-body); }
+    .form-control:focus { border-color:var(--bloom); box-shadow:0 0 0 3px rgba(178,32,37,.08); }
+    textarea.form-control { min-height:80px; resize:vertical; }
+    .modal-detail-row { display:flex; justify-content:space-between; gap:12px; padding:6px 0; font-size:13px; border-bottom:1px dashed var(--border); }
+    .modal-detail-row:last-child { border:none; }
+    .modal-detail-label { color:var(--muted); font-weight:600; }
+    .modal-detail-value { color:var(--text); font-weight:700; text-align:right; }
+    .modal-detail-value.mono { font-family:var(--font-mono); }
+
+    /* Charts */
+    .chart-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(380px,1fr)); gap:16px; margin-bottom:16px; }
+    .chart-wrap { position:relative; height:280px; }
+
+    /* Loader & toast */
+    .loader-overlay { position:fixed; inset:0; background:rgba(255,255,255,.88); display:none; flex-direction:column; align-items:center; justify-content:center; z-index:9999; }
+    .loader-overlay.show { display:flex; }
+    .spinner { width:44px; height:44px; border:3px solid var(--border); border-top-color:var(--bloom); border-radius:50%; animation:spin .7s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    .loader-text { margin-top:14px; font-family:var(--font-head); font-size:14px; font-weight:600; color:var(--muted); }
+    .toast-wrap { position:fixed; bottom:24px; left:50%; transform:translateX(-50%); z-index:9999; display:flex; flex-direction:column; gap:8px; pointer-events:none; width:90%; max-width:380px; }
+    .toast { padding:13px 20px; border-radius:var(--radius-full); font-family:var(--font-head); font-size:13px; font-weight:600; color:#fff; text-align:center; animation:tIn .25s ease,tOut .3s ease 3s forwards; }
+    .toast.success { background:var(--success); }
+    .toast.error { background:var(--error); }
+    .toast.info { background:var(--info); }
+    .toast.warning { background:var(--warning); }
+    @keyframes tIn { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:none; } }
+    @keyframes tOut { to { opacity:0; transform:translateY(10px); } }
+
+    .empty-state { text-align:center; padding:40px 20px; color:var(--muted); font-size:14px; }
+    .empty-state .ico { font-size:36px; opacity:.35; margin-bottom:10px; display:block; }
+    .section-header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:14px; gap:10px; flex-wrap:wrap; }
+    .section-header h2 { font-size:17px; font-weight:700; }
+    .section-header .meta { font-size:12px; color:var(--muted); }
+
+    .sidebar-back { display:none; }
+
+    /* Responsive */
+    @media (max-width:900px) {
+      .sidebar { position:fixed; left:0; top:0; transform:translateX(-100%); box-shadow:var(--shadow-md); }
+      .sidebar.open { transform:translateX(0); }
+      .btn-mobile-menu { display:inline-flex; }
+      .content { padding:14px; }
+      .topbar { padding:10px 14px; }
+      .kpi-value { font-size:22px; }
+      .modal { max-width:100%; }
+      .filter-bar { grid-template-columns:1fr 1fr; }
+      .sidebar-back { position:fixed; inset:0; background:rgba(0,0,0,.4); z-index:40; }
+      .sidebar.open ~ .main .sidebar-back-overlay { display:block; }
+      body.mob-sidebar-open .sidebar-back { display:block; }
+    }
+    @media (max-width:600px) {
+      .kpi-grid { grid-template-columns:1fr 1fr; }
+      .filter-bar { grid-template-columns:1fr; }
+      .topbar-title { font-size:15px; }
+      .panel { padding:14px; }
+      .chart-grid { grid-template-columns:1fr; }
+      .chart-wrap { height:240px; }
+      .preset-row { overflow-x:auto; flex-wrap:nowrap; padding-bottom:4px; }
+      .preset-btn { flex-shrink:0; }
+    }
+
+    /* Print-specific styles for printable reports */
+    @media print {
+      .sidebar, .topbar, .preset-row, .filter-bar, .filter-actions, .panel-head .btn, .table-foot, .modal-back { display:none !important; }
+      .content { padding:0; }
+      .panel { box-shadow:none; border:none; }
+      body { background:#fff; }
+      table.data { min-width:auto; font-size:11px; }
+      table.data th, table.data td { padding:5px 6px; }
+      .kpi-grid { page-break-inside:avoid; }
+      #report-print-header { display:block !important; margin-bottom:14px; padding-bottom:10px; border-bottom:2px solid var(--bloom); }
+    }
+    #report-print-header { display:none; }
+
+    .sa-only.hidden { display:none !important; }
+
+    /* Detail modal styles */
+    .detail-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px 18px; margin-bottom:10px; }
+    .dl { display:flex; flex-direction:column; gap:3px; }
+    .dt { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.4px; color:var(--muted); }
+    .dd { font-size:13px; color:var(--text); font-weight:500; word-break:break-word; }
+    .detail-block { margin-top:14px; padding-top:12px; border-top:1px solid var(--border); }
+    .detail-block .dd { margin-top:3px; }
+    .void-block { background:#fef2f2; border:1px solid #fecaca; padding:12px; border-radius:8px; margin-top:14px; }
+    .void-block .dt { color:#991b1b; }
+    .void-block .dd { color:#7f1d1d; }
+
+    /* Pagination buttons */
+    .pg-btn { background:var(--surface); border:1px solid var(--border); color:var(--text); font-size:12px; font-weight:600; padding:6px 12px; border-radius:8px; cursor:pointer; font-family:var(--font-head); transition:all .15s; min-width:36px; }
+    .pg-btn:hover:not(:disabled) { background:var(--surface-2); border-color:var(--bloom); }
+    .pg-btn.active { background:var(--bloom); color:#fff; border-color:var(--bloom); }
+    .pg-btn:disabled { opacity:.4; cursor:not-allowed; }
+
+    /* Action cell in tables */
+    td.actions { white-space:nowrap; display:flex; gap:6px; align-items:center; }
+    td.actions .btn-sm { padding:5px 10px; font-size:11px; }
+    @media (max-width:600px) {
+      td.actions { flex-direction:column; gap:4px; align-items:flex-start; }
+    }
+
+    /* Voided detail badge color complement */
+    tr.voided td.actions { opacity:1 !important; }
+  </style>
+</head>
+<body>
+<div class="loader-overlay" id="loader"><div class="spinner"></div><div class="loader-text" id="loader-text">Loading...</div></div>
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<!-- LOGIN VIEW -->
+<div id="view-login" class="view active">
+  <div class="login-card">
+    <div class="login-logo-wrap">
+      <svg class="login-logo-img" viewBox="0 0 220 80" xmlns="http://www.w3.org/2000/svg">
+        <rect x="6" y="14" width="52" height="52" rx="14" fill="#b22025"/>
+        <text x="32" y="50" font-family="Sora" font-size="28" font-weight="800" fill="#fff" text-anchor="middle">B</text>
+        <text x="72" y="42" font-family="Sora" font-size="22" font-weight="800" fill="#1a1a2e">Bloom</text>
+        <text x="72" y="62" font-family="DM Sans" font-size="12" font-weight="500" fill="#6b7280">Delivery Manager</text>
+      </svg>
+    </div>
+    <h1 class="login-title">Manager Portal</h1>
+    <p class="login-sub">Enter your passcode to continue</p>
+    <input type="password" class="pin-input" id="login-passcode"
+           inputmode="numeric" maxlength="10" placeholder="••••"
+           autocomplete="one-time-code" data-form-type="other" name="manager-otp">
+    <button class="btn-login" id="btn-login">Unlock</button>
+    <div class="login-error" id="login-error">Invalid passcode. Please try again.</div>
+    <div class="login-foot"><span id="build-stamp">Build: 2026-05-15 — v1.3 (hard branch scoping + composite-index-free queries)</span></div>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="view-app" class="view">
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">
+      <svg viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <rect width="40" height="40" rx="10" fill="#b22025"/>
+        <text x="20" y="28" font-family="Sora" font-size="22" font-weight="800" fill="#fff" text-anchor="middle">B</text>
+      </svg>
+      <div class="sidebar-brand-text"><strong>Bloom</strong><span>Delivery Manager</span></div>
+    </div>
+    <div class="nav-section">Operations</div>
+    <a class="nav-item active" data-tab="dashboard"><span class="ico">📊</span> Dashboard</a>
+    <a class="nav-item" data-tab="orders"><span class="ico">📦</span> Orders</a>
+    <a class="nav-item" data-tab="transfers"><span class="ico">🔄</span> Transfers</a>
+    <div class="nav-section">Analytics</div>
+    <a class="nav-item" data-tab="analytics"><span class="ico">📈</span> Analytics</a>
+    <a class="nav-item" data-tab="reports"><span class="ico">📄</span> Reports</a>
+    <div class="nav-section">Administration</div>
+    <a class="nav-item" data-tab="users"><span class="ico">👥</span> Users</a>
+    <a class="nav-item" data-tab="agents"><span class="ico">🚴</span> Drivers</a>
+    <a class="nav-item" data-tab="zones"><span class="ico">📍</span> Zones</a>
+    <a class="nav-item sa-only" data-tab="audit"><span class="ico">🛡️</span> Audit Log</a>
+    <div class="sidebar-footer">
+      <div class="user-chip">
+        <div class="user-avatar" id="user-avatar">?</div>
+        <div class="user-chip-info">
+          <div class="user-chip-name" id="user-name">—</div>
+          <div class="user-chip-role" id="user-role">—</div>
+        </div>
+      </div>
+      <button class="btn-logout" id="btn-logout">Logout</button>
+    </div>
+  </aside>
+  <div class="sidebar-back" id="sidebar-back"></div>
+
+  <div class="main">
+    <header class="topbar">
+      <button class="btn-mobile-menu" id="btn-mobile-menu">☰</button>
+      <div class="topbar-title" id="topbar-title">Dashboard</div>
+      <div class="topbar-actions">
+        <div id="branch-switcher-wrap" class="sa-only" style="display:none;">
+          <select id="branch-switcher" class="filter-input" style="min-height:36px;">
+            <option value="*">All Branches</option>
+          </select>
+        </div>
+      </div>
+    </header>
+
+    <div class="content">
+
+      <!-- DASHBOARD TAB -->
+      <div id="tab-dashboard" class="tab-panel active">
+        <div class="preset-row" id="dash-preset-row">
+          <button class="preset-btn active" data-preset="today">Today</button>
+          <button class="preset-btn" data-preset="yesterday">Yesterday</button>
+          <button class="preset-btn" data-preset="week">This Week</button>
+          <button class="preset-btn" data-preset="month">This Month</button>
+          <button class="preset-btn" data-preset="all">All Time</button>
+        </div>
+        <div class="kpi-grid" id="kpi-grid">
+          <div class="kpi"><span class="kpi-ico">📦</span><div class="kpi-label">Total Orders</div><div class="kpi-value" id="kpi-total">—</div><div class="kpi-sub" id="kpi-total-sub">in selected period</div></div>
+          <div class="kpi"><span class="kpi-ico">✅</span><div class="kpi-label">Delivered</div><div class="kpi-value success" id="kpi-delivered">—</div><div class="kpi-sub" id="kpi-delivered-sub">—</div></div>
+          <div class="kpi"><span class="kpi-ico">⏳</span><div class="kpi-label">Pending</div><div class="kpi-value info" id="kpi-pending">—</div><div class="kpi-sub">handed over, not confirmed</div></div>
+          <div class="kpi"><span class="kpi-ico">⚠️</span><div class="kpi-label">Failed / Returned</div><div class="kpi-value error" id="kpi-failed">—</div><div class="kpi-sub" id="kpi-failed-sub">—</div></div>
+          <div class="kpi"><span class="kpi-ico">🚴</span><div class="kpi-label">Active Drivers</div><div class="kpi-value" id="kpi-drivers">—</div><div class="kpi-sub">delivered ≥1 today</div></div>
+          <div class="kpi"><span class="kpi-ico">⏱️</span><div class="kpi-label">Avg Delivery Time</div><div class="kpi-value warning" id="kpi-avg-time">—</div><div class="kpi-sub">minutes (excl. voided)</div></div>
+          <div class="kpi"><span class="kpi-ico">💰</span><div class="kpi-label">Shipping Revenue</div><div class="kpi-value bloom" id="kpi-revenue">—</div><div class="kpi-sub">EGP (delivered only)</div></div>
+          <div class="kpi"><span class="kpi-ico">🏆</span><div class="kpi-label">Fastest Driver</div><div class="kpi-value" id="kpi-fastest" style="font-size:17px;">—</div><div class="kpi-sub" id="kpi-fastest-sub">—</div></div>
+        </div>
+        <!-- Pending Transfers Callout (Session 5 — P1-3) -->
+        <div class="panel" id="dash-pending-transfers" style="display:none;">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">🔄 Pending Transfer Approvals
+                <span class="badge b-pending" id="dash-tf-count" style="margin-left:8px;">0</span>
+              </div>
+              <div class="panel-sub" id="dash-tf-sub">Transfers awaiting your decision. Click any row to review and approve/reject.</div>
+            </div>
+            <button class="btn btn-outline btn-sm" id="btn-dash-tf-all">Open Transfers tab →</button>
+          </div>
+          <div class="table-wrap">
+            <div class="table-scroll">
+              <table class="data" id="dash-pending-tf-table">
+                <thead><tr><th>From</th><th>To</th><th>Items</th><th>Created By</th><th>Created</th><th style="text-align:center;">Action</th></tr></thead>
+                <tbody id="dash-pending-tf-body"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="panel-head">
+            <div>
+              <div class="panel-title">Recent Orders <span style="font-size:11px;color:var(--success);font-weight:600;margin-left:6px">● LIVE</span></div>
+              <div class="panel-sub">Live feed — last 20 orders. Use the Orders tab for filtering and export.</div>
+            </div>
+            <button class="btn btn-outline btn-sm" id="btn-go-orders">View all →</button>
+          </div>
+          <div class="table-wrap">
+            <div class="table-scroll">
+              <table class="data" id="dashboard-recent-table">
+                <thead><tr><th>Order ID</th><th>Branch</th><th>Zone</th><th>Driver</th><th>Status</th><th>Handover</th><th>Duration</th></tr></thead>
+                <tbody id="dashboard-recent-body"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ORDERS TAB -->
+      <div id="tab-orders" class="tab-panel">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="panel-title">Filter & Search</div><div class="panel-sub">All filters combine. Click search after changes.</div></div>
+          </div>
+          <div class="preset-row" id="orders-preset-row">
+            <button class="preset-btn active" data-preset="today">Today</button>
+            <button class="preset-btn" data-preset="yesterday">Yesterday</button>
+            <button class="preset-btn" data-preset="week">This Week</button>
+            <button class="preset-btn" data-preset="month">This Month</button>
+            <button class="preset-btn" data-preset="all">All Time</button>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-field"><label>From</label><input type="date" class="filter-input" id="of-from"></div>
+            <div class="filter-field"><label>To</label><input type="date" class="filter-input" id="of-to"></div>
+            <div class="filter-field"><label>Branch</label><select class="filter-input" id="of-branch"><option value="">All</option></select></div>
+            <div class="filter-field"><label>Zone</label><select class="filter-input" id="of-zone"><option value="">All</option></select></div>
+            <div class="filter-field"><label>Driver</label><select class="filter-input" id="of-driver"><option value="">All</option></select></div>
+            <div class="filter-field"><label>Status</label>
+              <select class="filter-input" id="of-status">
+                <option value="">All</option>
+                <option value="Handed Over">Pending (Handed Over)</option>
+                <option value="Delivered">Delivered</option>
+                <option value="Partially Delivered">Partially Delivered</option>
+                <option value="Returned">Returned</option>
+                <option value="No Answer">No Answer</option>
+                <option value="Postponed">Postponed</option>
+                <option value="Voided">Voided</option>
+              </select>
+            </div>
+            <div class="filter-field"><label>SLA</label>
+              <select class="filter-input" id="of-sla">
+                <option value="">All</option><option value="On Time">On Time</option><option value="Delayed">Delayed</option>
+              </select>
+            </div>
+            <div class="filter-field"><label>Order ID search</label><input type="text" class="filter-input" id="of-order" placeholder="e.g. 1234567" autocomplete="off"></div>
+            <div class="filter-field"><label>Min duration (min)</label><input type="number" class="filter-input" id="of-dur-min" min="0" autocomplete="off"></div>
+            <div class="filter-field"><label>Max duration (min)</label><input type="number" class="filter-input" id="of-dur-max" min="0" autocomplete="off"></div>
+            <div class="filter-field"><label>Min fee (EGP)</label><input type="number" class="filter-input" id="of-fee-min" min="0" autocomplete="off"></div>
+            <div class="filter-field"><label>Max fee (EGP)</label><input type="number" class="filter-input" id="of-fee-max" min="0" autocomplete="off"></div>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary btn-sm" id="btn-of-search">🔍 Search</button>
+            <button class="btn btn-outline btn-sm" id="btn-of-reset">✕ Reset</button>
+            <div style="flex:1"></div>
+            <button class="btn btn-success btn-sm" id="btn-export-xlsx">📊 Excel</button>
+            <button class="btn btn-info btn-sm" id="btn-export-csv">📄 CSV</button>
+            <button class="btn btn-outline btn-sm" id="btn-export-print">🖨️ Print</button>
+          </div>
+        </div>
+        <div class="panel" style="padding:0;">
+          <div class="table-wrap" style="border-radius:var(--radius);border:none;">
+            <div class="table-scroll">
+              <table class="data" id="orders-table">
+                <thead>
+                  <tr>
+                    <th data-sort="order_id">Order ID <span class="sort-arrow">▾</span></th>
+                    <th data-sort="store_name">Branch <span class="sort-arrow">▾</span></th>
+                    <th data-sort="zone_name">Zone <span class="sort-arrow">▾</span></th>
+                    <th data-sort="agent_name">Driver <span class="sort-arrow">▾</span></th>
+                    <th data-sort="status">Status <span class="sort-arrow">▾</span></th>
+                    <th data-sort="sla_status">SLA <span class="sort-arrow">▾</span></th>
+                    <th data-sort="handover_ts">Handover <span class="sort-arrow">▾</span></th>
+                    <th data-sort="confirm_ts">Delivery <span class="sort-arrow">▾</span></th>
+                    <th data-sort="duration_minutes">Dur. (min) <span class="sort-arrow">▾</span></th>
+                    <th data-sort="shipping_fee">Fee <span class="sort-arrow">▾</span></th>
+                    <th data-sort="amount_collected">Collected <span class="sort-arrow">▾</span></th>
+                    <th data-sort="last_updated">Updated <span class="sort-arrow">▾</span></th>
+                    <th>Notes</th>
+                    <th style="text-align:center;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody id="orders-body"><tr><td colspan="14" class="empty-state"><span class="ico">📋</span>Apply filters to load orders</td></tr></tbody>
+              </table>
+            </div>
+            <div class="table-foot">
+              <div style="font-size:12px;color:var(--muted)" id="orders-count">0 records</div>
+              <div class="pagination" id="orders-pagination"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- TRANSFERS TAB -->
+      <div id="tab-transfers" class="tab-panel">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="panel-title">Inter-Branch Transfers</div><div class="panel-sub">Approve or reject transfers and assign value. Voided/rejected transfers are preserved as audit records.</div></div>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-field"><label>Status</label>
+              <select class="filter-input" id="tf-status"><option value="">All</option><option value="Pending">Pending</option><option value="Approved">Approved</option><option value="Rejected">Rejected</option></select>
+            </div>
+            <div class="filter-field"><label>From branch</label><select class="filter-input" id="tf-from"><option value="">All</option></select></div>
+            <div class="filter-field"><label>To branch</label><select class="filter-input" id="tf-to"><option value="">All</option></select></div>
+            <div class="filter-field"><label>From date</label><input type="date" class="filter-input" id="tf-date-from"></div>
+            <div class="filter-field"><label>To date</label><input type="date" class="filter-input" id="tf-date-to"></div>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary btn-sm" id="btn-tf-search">🔍 Search</button>
+            <button class="btn btn-outline btn-sm" id="btn-tf-reset">✕ Reset</button>
+          </div>
+        </div>
+        <div class="panel" style="padding:0;">
+          <div class="table-wrap" style="border-radius:var(--radius);border:none;">
+            <div class="table-scroll">
+              <table class="data" id="transfers-table">
+                <thead><tr><th>From</th><th>To</th><th>Items</th><th>Created By</th><th>Status</th><th>Value (EGP)</th><th>Created</th><th>Approved By</th><th style="text-align:center;">Actions</th></tr></thead>
+                <tbody id="transfers-body"><tr><td colspan="9" class="empty-state">Loading...</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ANALYTICS TAB -->
+      <div id="tab-analytics" class="tab-panel">
+        <div class="preset-row" id="an-preset-row">
+          <button class="preset-btn" data-preset="today">Today</button>
+          <button class="preset-btn active" data-preset="week">This Week</button>
+          <button class="preset-btn" data-preset="month">This Month</button>
+          <button class="preset-btn" data-preset="all">All Time</button>
+        </div>
+        <div class="chart-grid">
+          <div class="panel"><div class="panel-head"><div class="panel-title">Orders Over Time</div></div><div class="chart-wrap"><canvas id="chart-trend"></canvas></div></div>
+          <div class="panel"><div class="panel-head"><div class="panel-title">Status Distribution</div></div><div class="chart-wrap"><canvas id="chart-status"></canvas></div></div>
+          <div class="panel"><div class="panel-head"><div class="panel-title">Orders by Branch</div></div><div class="chart-wrap"><canvas id="chart-branch"></canvas></div></div>
+          <div class="panel"><div class="panel-head"><div class="panel-title">Peak Hours (Handover)</div></div><div class="chart-wrap"><canvas id="chart-hours"></canvas></div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Driver Performance</div><div class="panel-sub" style="margin-top:0;">Top drivers ranked by deliveries (within the selected period).</div></div>
+          <div class="table-wrap"><div class="table-scroll">
+            <table class="data" id="driver-perf-table">
+              <thead><tr><th>Driver</th><th>Branch</th><th>Delivered</th><th>Returned</th><th>Other Failed</th><th>Avg Time (min)</th><th>Fastest (min)</th><th>On Time %</th><th>Revenue (EGP)</th></tr></thead>
+              <tbody id="driver-perf-body"><tr><td colspan="9" class="empty-state">Loading...</td></tr></tbody>
+            </table>
+          </div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Branch Performance</div></div>
+          <div class="table-wrap"><div class="table-scroll">
+            <table class="data" id="branch-perf-table">
+              <thead><tr><th>Branch</th><th>Total Orders</th><th>Delivered</th><th>Failed</th><th>Avg Time (min)</th><th>On Time %</th><th>Revenue (EGP)</th></tr></thead>
+              <tbody id="branch-perf-body"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
+            </table>
+          </div></div>
+        </div>
+        <div class="panel">
+          <div class="panel-head"><div class="panel-title">Zone Analytics</div></div>
+          <div class="table-wrap"><div class="table-scroll">
+            <table class="data" id="zone-perf-table">
+              <thead><tr><th>Zone</th><th>Branch</th><th>Total</th><th>Delivered</th><th>Avg Time (min)</th><th>On Time %</th><th>Revenue (EGP)</th></tr></thead>
+              <tbody id="zone-perf-body"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
+            </table>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- REPORTS TAB -->
+      <div id="tab-reports" class="tab-panel">
+        <div class="panel">
+          <div class="panel-head"><div><div class="panel-title">Generate Report</div><div class="panel-sub">Produces a financial / operational summary for the selected period and scope, exportable to Excel/PDF/Print.</div></div></div>
+          <div class="preset-row" id="rep-preset-row">
+            <button class="preset-btn" data-preset="today">Today</button>
+            <button class="preset-btn" data-preset="yesterday">Yesterday</button>
+            <button class="preset-btn active" data-preset="week">This Week</button>
+            <button class="preset-btn" data-preset="month">This Month</button>
+          </div>
+          <div class="filter-bar">
+            <div class="filter-field"><label>From</label><input type="date" class="filter-input" id="rep-from"></div>
+            <div class="filter-field"><label>To</label><input type="date" class="filter-input" id="rep-to"></div>
+            <div class="filter-field"><label>Branch</label><select class="filter-input" id="rep-branch"><option value="">All</option></select></div>
+            <div class="filter-field"><label>Report Type</label>
+              <select class="filter-input" id="rep-type">
+                <option value="financial">Financial Summary</option>
+                <option value="driver-payroll">Driver Payroll (Shipping Fees)</option>
+                <option value="branch">Branch Performance</option>
+                <option value="zone">Zone Performance</option>
+                <option value="sla">SLA Compliance</option>
+              </select>
+            </div>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary btn-sm" id="btn-rep-generate">📊 Generate Report</button>
+            <div style="flex:1"></div>
+            <button class="btn btn-success btn-sm" id="btn-rep-xlsx" disabled>📊 Excel</button>
+            <button class="btn btn-info btn-sm" id="btn-rep-csv" disabled>📄 CSV</button>
+            <button class="btn btn-outline btn-sm" id="btn-rep-print" disabled>🖨️ Print / PDF</button>
+          </div>
+        </div>
+        <div class="panel" id="report-output" style="display:none;">
+          <div id="report-print-header"></div>
+          <div id="report-content"></div>
+        </div>
+      </div>
+
+      <!-- USERS TAB -->
+      <div id="tab-users" class="tab-panel">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="panel-title">Staff & Manager Accounts</div><div class="panel-sub">Manage handover staff, branch managers, and super admins. Passcodes must be globally unique.</div></div>
+            <button class="btn btn-primary btn-sm" id="btn-add-user">＋ Add User</button>
+          </div>
+          <div class="filter-bar" style="grid-template-columns:1fr 1fr 1fr;">
+            <div class="filter-field"><label>Branch</label><select class="filter-input" id="uf-branch"><option value="">All</option></select></div>
+            <div class="filter-field"><label>Role</label><select class="filter-input" id="uf-role"><option value="">All</option><option value="staff">Staff</option><option value="store_admin">Branch Manager</option><option value="super_admin">Super Admin</option></select></div>
+            <div class="filter-field"><label>Search (username)</label><input type="text" class="filter-input" id="uf-search" placeholder="e.g. m.saad" autocomplete="off"></div>
+          </div>
+          <div class="table-wrap"><div class="table-scroll">
+            <table class="data" id="users-table">
+              <thead><tr><th>Passcode</th><th>Username</th><th>Display Name</th><th>Email</th><th>Role</th><th>Branch</th><th>Status</th><th style="text-align:center;">Actions</th></tr></thead>
+              <tbody id="users-body"><tr><td colspan="8" class="empty-state">Loading...</td></tr></tbody>
+            </table>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- DRIVERS TAB -->
+      <div id="tab-agents" class="tab-panel">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="panel-title">Delivery Drivers</div><div class="panel-sub">Manage drivers, their passcodes, and branch assignment.</div></div>
+            <button class="btn btn-primary btn-sm" id="btn-add-agent">＋ Add Driver</button>
+          </div>
+          <div class="filter-bar" style="grid-template-columns:1fr 1fr 1fr;">
+            <div class="filter-field"><label>Branch</label><select class="filter-input" id="af-branch"><option value="">All</option></select></div>
+            <div class="filter-field"><label>Status</label><select class="filter-input" id="af-status"><option value="">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+            <div class="filter-field"><label>Search</label><input type="text" class="filter-input" id="af-search" placeholder="name or id" autocomplete="off"></div>
+          </div>
+          <div class="table-wrap"><div class="table-scroll">
+            <table class="data" id="agents-table">
+              <thead><tr><th>Driver ID</th><th>Name</th><th>Branch</th><th>Passcode</th><th>Phone</th><th>Status</th><th style="text-align:center;">Actions</th></tr></thead>
+              <tbody id="agents-body"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
+            </table>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- ZONES TAB -->
+      <div id="tab-zones" class="tab-panel">
+        <div class="panel">
+          <div class="panel-head">
+            <div><div class="panel-title">Delivery Zones</div><div class="panel-sub">Per-branch zones with shipping price and SLA in minutes. Used for fee calculation and SLA evaluation.</div></div>
+            <button class="btn btn-primary btn-sm" id="btn-add-zone">＋ Add Zone</button>
+          </div>
+          <div class="filter-bar" style="grid-template-columns:1fr 1fr;">
+            <div class="filter-field"><label>Branch</label><select class="filter-input" id="zf-branch"><option value="">All</option></select></div>
+            <div class="filter-field"><label>Status</label><select class="filter-input" id="zf-status"><option value="">All</option><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+          </div>
+          <div class="table-wrap"><div class="table-scroll">
+            <table class="data" id="zones-table">
+              <thead><tr><th>Zone ID</th><th>Name</th><th>Branch</th><th>Price (EGP)</th><th>SLA (min)</th><th>Status</th><th style="text-align:center;">Actions</th></tr></thead>
+              <tbody id="zones-body"><tr><td colspan="7" class="empty-state">Loading...</td></tr></tbody>
+            </table>
+          </div></div>
+        </div>
+      </div>
+
+      <!-- AUDIT TAB -->
+      <div id="tab-audit" class="tab-panel">
+        <div class="panel">
+          <div class="panel-head"><div><div class="panel-title">Audit Log</div><div class="panel-sub">Append-only trail of all manager actions. Super admins only.</div></div></div>
+          <div class="filter-bar">
+            <div class="filter-field"><label>From</label><input type="date" class="filter-input" id="auf-from"></div>
+            <div class="filter-field"><label>To</label><input type="date" class="filter-input" id="auf-to"></div>
+            <div class="filter-field"><label>Action</label>
+              <select class="filter-input" id="auf-action">
+                <option value="">All</option>
+                <option value="login">Login</option><option value="logout">Logout</option>
+                <option value="void_order">Void Order</option><option value="reopen_order">Reopen Order</option>
+                <option value="user_create">Create User</option><option value="user_update">Update User</option>
+                <option value="agent_create">Create Driver</option><option value="agent_update">Update Driver</option>
+                <option value="zone_create">Create Zone</option><option value="zone_update">Update Zone</option>
+                <option value="transfer_approve">Approve Transfer</option><option value="transfer_reject">Reject Transfer</option>
+                <option value="export">Export</option><option value="report_generate">Generate Report</option>
+              </select>
+            </div>
+            <div class="filter-field"><label>Actor</label><input type="text" class="filter-input" id="auf-actor" placeholder="username" autocomplete="off"></div>
+          </div>
+          <div class="filter-actions">
+            <button class="btn btn-primary btn-sm" id="btn-auf-search">🔍 Search</button>
+            <button class="btn btn-outline btn-sm" id="btn-auf-reset">✕ Reset</button>
+          </div>
+          <div class="table-wrap" style="margin-top:14px;"><div class="table-scroll">
+            <table class="data" id="audit-table">
+              <thead><tr><th>Timestamp</th><th>Actor</th><th>Role</th><th>Action</th><th>Target</th><th>Details</th></tr></thead>
+              <tbody id="audit-body"><tr><td colspan="6" class="empty-state">Apply filters to load audit log</td></tr></tbody>
+            </table>
+          </div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- MODALS -->
+<div class="modal-back" id="modal-order">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Order Details</div><button class="modal-close" data-close="modal-order">&times;</button></div>
+    <div class="modal-body" id="modal-order-body"></div>
+    <div class="modal-foot" id="modal-order-foot"></div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-void">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Void Order</div><button class="modal-close" data-close="modal-void">&times;</button></div>
+    <div class="modal-body">
+      <div style="padding:12px;background:var(--warning-bg);border-radius:8px;font-size:13px;color:#78350f;margin-bottom:14px;line-height:1.6;">⚠️ This will soft-void the order. Historical data is preserved. Voided orders are excluded from KPIs, revenue, and analytics. You can reopen the order later if needed.</div>
+      <div id="modal-void-summary"></div>
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Reason (required)</label>
+        <textarea class="form-control" id="void-reason" maxlength="500" placeholder="e.g. duplicate entry, customer cancellation, driver error..."></textarea>
+      </div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline btn-sm" data-close="modal-void">Cancel</button><button class="btn btn-danger btn-sm" id="btn-confirm-void">Confirm Void</button></div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-user">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="modal-user-title">Add User</div><button class="modal-close" data-close="modal-user">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="user-edit-passcode" value="">
+      <div class="form-group"><label class="form-label">Passcode (3–10 digits) *</label><input type="text" class="form-control" id="user-passcode" inputmode="numeric" maxlength="10" autocomplete="off"><div style="font-size:11px;color:var(--muted);margin-top:4px;">Must be unique across all users. Cannot be changed after creation.</div></div>
+      <div class="form-group"><label class="form-label">Username *</label><input type="text" class="form-control" id="user-username" autocomplete="off"></div>
+      <div class="form-group"><label class="form-label">Display Name</label><input type="text" class="form-control" id="user-display" autocomplete="off"></div>
+      <div class="form-group"><label class="form-label">Email</label><input type="email" class="form-control" id="user-email" autocomplete="off"></div>
+      <div class="form-group"><label class="form-label">Role *</label>
+        <select class="form-control" id="user-role-sel"><option value="staff">Staff (Handover only)</option><option value="store_admin">Branch Manager</option><option value="super_admin">Super Admin (all branches)</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Branch *</label><select class="form-control" id="user-branch-sel"></select></div>
+      <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="user-status-sel"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+      <div class="login-error" id="user-error"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline btn-sm" data-close="modal-user">Cancel</button><button class="btn btn-primary btn-sm" id="btn-save-user">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-agent">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="modal-agent-title">Add Driver</div><button class="modal-close" data-close="modal-agent">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="agent-edit-id" value="">
+      <div class="form-group"><label class="form-label">Driver ID *</label><input type="text" class="form-control" id="agent-id" autocomplete="off" placeholder="e.g. WND03"><div style="font-size:11px;color:var(--muted);margin-top:4px;">Cannot be changed after creation.</div></div>
+      <div class="form-group"><label class="form-label">Name *</label><input type="text" class="form-control" id="agent-name" autocomplete="off"></div>
+      <div class="form-group"><label class="form-label">Branch *</label><select class="form-control" id="agent-branch"></select></div>
+      <div class="form-group"><label class="form-label">Passcode * (must be globally unique)</label><input type="text" class="form-control" id="agent-passcode" inputmode="numeric" autocomplete="off"></div>
+      <div class="form-group"><label class="form-label">Phone</label><input type="text" class="form-control" id="agent-phone" autocomplete="off" placeholder="+201234567890"></div>
+      <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="agent-status"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+      <div class="login-error" id="agent-error"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline btn-sm" data-close="modal-agent">Cancel</button><button class="btn btn-primary btn-sm" id="btn-save-agent">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-zone">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title" id="modal-zone-title">Add Zone</div><button class="modal-close" data-close="modal-zone">&times;</button></div>
+    <div class="modal-body">
+      <input type="hidden" id="zone-edit-docid" value="">
+      <div class="form-group"><label class="form-label">Branch *</label><select class="form-control" id="zone-branch"></select></div>
+      <div class="form-group"><label class="form-label">Short ID * (e.g. zone_5)</label><input type="text" class="form-control" id="zone-id" autocomplete="off" placeholder="zone_5"></div>
+      <div class="form-group"><label class="form-label">Display Name *</label><input type="text" class="form-control" id="zone-name" autocomplete="off" placeholder="Zone 5"></div>
+      <div class="form-group"><label class="form-label">Price (EGP) *</label><input type="number" class="form-control" id="zone-price" min="0" step="0.5"></div>
+      <div class="form-group"><label class="form-label">SLA (minutes) *</label><input type="number" class="form-control" id="zone-sla" min="1" step="1"></div>
+      <div class="form-group"><label class="form-label">Status</label><select class="form-control" id="zone-status"><option value="active">Active</option><option value="inactive">Inactive</option></select></div>
+      <div class="login-error" id="zone-error"></div>
+    </div>
+    <div class="modal-foot"><button class="btn btn-outline btn-sm" data-close="modal-zone">Cancel</button><button class="btn btn-primary btn-sm" id="btn-save-zone">Save</button></div>
+  </div>
+</div>
+
+<div class="modal-back" id="modal-transfer">
+  <div class="modal">
+    <div class="modal-head"><div class="modal-title">Transfer Decision</div><button class="modal-close" data-close="modal-transfer">&times;</button></div>
+    <div class="modal-body" id="modal-transfer-body"></div>
+    <div class="modal-foot"><button class="btn btn-outline btn-sm" data-close="modal-transfer">Cancel</button><button class="btn btn-danger btn-sm" id="btn-tf-reject">✕ Reject</button><button class="btn btn-success btn-sm" id="btn-tf-approve">✓ Approve</button></div>
+  </div>
+</div>
+<script type="module">
+/* ===========================================================
+   Bloom Delivery Manager — admin.html
+   Build: 2026-05-15 — v1.3 (hard branch scoping + composite-index-free queries)
+   Architecture: Firestore (single project) + anonymous auth.
+   Schema invariants respected:
+     - handover_log/{order_id}_{date}   (date = UTC YYYY-MM-DD)
+     - delivery_confirm/{same docKey}   handover_ref = docKey
+     - users/{passcode}                 role ∈ staff|store_admin|super_admin
+     - agents/{agent_id}                login field is `password`
+     - zones/{zone_X_STORE}             id, name, price, sla_minutes, store_id
+     - transfers/{auto_id}
+     - audit_log/{auto_id}              append-only
+   No hard deletes. All status updates via runTransaction.
+   =========================================================== */
+console.log('[Bloom Admin] Build: 2026-05-15 — v1.3 (hard branch scoping + composite-index-free queries)');
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged }
+  from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+import {
+  getFirestore, doc, getDoc, setDoc, updateDoc, addDoc,
+  collection, query, where, orderBy, limit, getDocs,
+  onSnapshot, runTransaction, serverTimestamp, Timestamp
+} from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyC6dO6F02hlsZ9XKaNgmhHCeFJ0cwhfg6o",
+  authDomain: "bloom-delivery-f9540.firebaseapp.com",
+  projectId: "bloom-delivery-f9540",
+  storageBucket: "bloom-delivery-f9540.firebasestorage.app",
+  messagingSenderId: "409469512995",
+  appId: "1:409469512995:web:74eb908a613f3f2c9a3096"
+};
+const app  = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db   = getFirestore(app);
+
+/* ===================== State ===================== */
+let session = null;                 // current manager
+const SS_KEY = 'bloom_ms';          // localStorage session key
+
+// Reference data caches (refreshed on bootApp / explicit refresh)
+let _storesMap  = {};               // store_id → { name }
+let _agentsMap  = {};               // agent_id → { name, store_id, password, status, phone }
+let _zonesMap   = {};               // zoneDocId → { id, name, price, sla_minutes, store_id }
+let _usersList  = [];               // all /users docs (RAM cache for Users tab)
+let _zonesList  = [];               // all /zones docs (RAM cache for Zones tab)
+let _agentsList = [];               // all /agents docs (RAM cache for Drivers tab)
+
+// Working set for the Orders/Analytics/Reports tabs (joined handover+confirm rows)
+let _ordersCache = [];              // [{order_id, store_id, store_name, zone_id, zone_name, agent_id, agent_name, status, isVoided, handover_ts, confirm_ts, duration_minutes, sla_status, shipping_fee, payment_method, amount_collected, notes, handover_by, docKey, voidReason, voidedBy}]
+let _ordersFiltered = [];
+let _ordersPage = 1;
+const PAGE_SIZE = 50;
+let _ordersSort = { col: 'handover_ts', dir: 'desc' };
+
+let _dashUnsub = null;              // dashboard onSnapshot detacher
+
+let _chartTrend = null, _chartStatus = null, _chartBranch = null, _chartHours = null;
+
+let _currentBranchView = '';        // super_admin's branch switcher value ('' = all)
+let _currentReport = null;          // {type, rows, headers, period}
+
+/* ===================== Helpers ===================== */
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+function escapeHtml(s) {
+  if (s === null || s === undefined) return '';
+  return String(s).replace(/[&<>"']/g, c =>
+    ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function localDateStr(d=new Date()) {
+  // Local YYYY-MM-DD (used for UI date pickers / filters).
+  // Doc keys in Firestore are intentionally UTC; see utcDateStr().
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const dd= String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+function utcDateStr(d=new Date()) {
+  return d.toISOString().split('T')[0];
+}
+function tsToDate(ts) {
+  if (!ts) return null;
+  if (ts instanceof Date) return ts;
+  if (typeof ts.toDate === 'function') return ts.toDate();
+  if (typeof ts === 'number') return new Date(ts);
+  return null;
+}
+function formatTs(ts) {
+  const d = tsToDate(ts);
+  if (!d) return '—';
+  const y = d.getFullYear();
+  const mo= String(d.getMonth()+1).padStart(2,'0');
+  const dd= String(d.getDate()).padStart(2,'0');
+  const hh= String(d.getHours()).padStart(2,'0');
+  const mm= String(d.getMinutes()).padStart(2,'0');
+  return `${y}-${mo}-${dd} ${hh}:${mm}`;
+}
+function formatTsShort(ts) {
+  const d = tsToDate(ts);
+  if (!d) return '—';
+  const hh= String(d.getHours()).padStart(2,'0');
+  const mm= String(d.getMinutes()).padStart(2,'0');
+  return `${hh}:${mm}`;
+}
+function formatDuration(min) {
+  if (min === null || min === undefined || isNaN(min)) return '—';
+  min = Math.round(min);
+  if (min < 60) return `${min} min`;
+  const h = Math.floor(min/60), m = min%60;
+  return m === 0 ? `${h}h` : `${h}h ${m}m`;
+}
+function formatEGP(n) {
+  if (n === null || n === undefined || isNaN(n)) return '0.00 EGP';
+  return Number(n).toLocaleString('en-US', {minimumFractionDigits:2, maximumFractionDigits:2}) + ' EGP';
+}
+function getStatusBadge(status, isVoided=false) {
+  if (isVoided) return `<span class="badge b-voided">Voided</span>`;
+  const map = {
+    'Handed Over':         'b-handed',
+    'Delivered':           'b-delivered',
+    'Partially Delivered': 'b-partial',
+    'Returned':            'b-returned',
+    'No Answer':           'b-noanswer',
+    'Postponed':           'b-postponed',
+    'Voided':              'b-voided'
+  };
+  const cls = map[status] || 'b-handed';
+  return `<span class="badge ${cls}">${escapeHtml(status||'—')}</span>`;
+}
+function getPresetRange(preset) {
+  const now = new Date();
+  const today0 = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  let from, to;
+  if (preset === 'today') {
+    from = new Date(today0);
+    to   = new Date(today0); to.setHours(23,59,59,999);
+  } else if (preset === 'yesterday') {
+    from = new Date(today0); from.setDate(from.getDate()-1);
+    to   = new Date(from);   to.setHours(23,59,59,999);
+  } else if (preset === 'week') {
+    // Last 7 days (rolling)
+    from = new Date(today0); from.setDate(from.getDate()-6);
+    to   = new Date(today0); to.setHours(23,59,59,999);
+  } else if (preset === 'month') {
+    from = new Date(today0); from.setDate(from.getDate()-29);
+    to   = new Date(today0); to.setHours(23,59,59,999);
+  } else if (preset === 'all') {
+    from = new Date(2024, 0, 1); // arbitrary lower bound
+    to   = new Date(today0); to.setHours(23,59,59,999);
+  } else {
+    from = new Date(today0);
+    to   = new Date(today0); to.setHours(23,59,59,999);
+  }
+  return { from, to, fromStr: localDateStr(from), toStr: localDateStr(to) };
+}
+function showToast(msg, type='info', ms=3000) {
+  const wrap = $('#toast-wrap');
+  if (!wrap) { console.log('[toast]', type, msg); return; }
+  const el = document.createElement('div');
+  el.className = `toast t-${type}`;
+  el.textContent = msg;
+  wrap.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateY(-8px)'; }, ms-300);
+  setTimeout(() => el.remove(), ms);
+}
+function showLoader(text='Loading...') {
+  $('#loader-text').textContent = text;
+  $('#loader').classList.add('show');
+}
+function hideLoader() { $('#loader').classList.remove('show'); }
+
+async function ensureAuth() {
+  if (auth.currentUser) return auth.currentUser;
+  await signInAnonymously(auth);
+  return new Promise(res => {
+    const unsub = onAuthStateChanged(auth, u => { if (u) { unsub(); res(u); } });
+  });
+}
+
+/* Branch scoping: returns null = all branches (super_admin only),
+   or array of branch ids (store_admin always returns [their store_id]). */
+function getScopedBranchIds() {
+  if (!session) return [];
+  // CRITICAL: store_admin is HARD-LOCKED to their own branch. We never trust
+  // _currentBranchView for non-super_admin users — a malicious/buggy code
+  // path that wrote to _currentBranchView would otherwise leak data across
+  // branches. The branch switcher UI is hidden for store_admin via .sa-only
+  // CSS, but this is the server-of-truth defense.
+  if (session.role !== 'super_admin') {
+    if (!session.store_id || session.store_id === '*') {
+      console.error('[scope] non-super-admin with invalid store_id:', session);
+      return []; // returns empty = nothing visible
+    }
+    return [session.store_id];
+  }
+  // Super_admin: honor branch switcher if a specific branch is picked.
+  return _currentBranchView ? [_currentBranchView] : null;
+}
+
+/* ===================== Audit Logging ===================== */
+async function logAudit(action, target_collection, target_id, details) {
+  try {
+    await addDoc(collection(db, 'audit_log'), {
+      actor_passcode:  session?.passcode || 'unknown',
+      actor_username:  session?.username || 'unknown',
+      actor_role:      session?.role     || 'unknown',
+      actor_store_id:  session?.store_id || 'unknown',
+      action:          String(action),
+      target_collection: target_collection ? String(target_collection) : null,
+      target_id:       target_id ? String(target_id) : null,
+      details:         JSON.stringify(details || {}).slice(0, 4000),
+      ts:              serverTimestamp(),
+      device_info:     (navigator.userAgent || '').slice(0, 200)
+    });
+  } catch (e) {
+    console.warn('[audit] failed:', action, e?.message);
+  }
+}
+
+/* ===================== Session ===================== */
+function loadSession() {
+  try {
+    const raw = localStorage.getItem(SS_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw);
+    if (!s || !s.passcode || !s.role) return null;
+    return s;
+  } catch { return null; }
+}
+function saveSession(s) {
+  try { localStorage.setItem(SS_KEY, JSON.stringify(s)); } catch {}
+}
+function clearSession() {
+  try { localStorage.removeItem(SS_KEY); } catch {}
+}
+
+/* ===================== Login Flow ===================== */
+async function handleLogin() {
+  const pcEl = $('#login-passcode');
+  const errEl = $('#login-error');
+  errEl.classList.remove('show');
+  const pc = (pcEl.value || '').trim();
+  if (!/^\d{3,10}$/.test(pc)) {
+    errEl.textContent = 'Enter a valid passcode (3–10 digits).';
+    errEl.classList.add('show');
+    return;
+  }
+  showLoader('Authenticating...');
+  try {
+    await ensureAuth();
+    const userRef = doc(db, 'users', pc);
+    const snap = await getDoc(userRef);
+    if (!snap.exists()) {
+      hideLoader();
+      errEl.textContent = 'Invalid passcode.';
+      errEl.classList.add('show');
+      return;
+    }
+    const u = snap.data();
+    if (u.role !== 'store_admin' && u.role !== 'super_admin') {
+      hideLoader();
+      errEl.textContent = 'Insufficient permissions. Manager access required.';
+      errEl.classList.add('show');
+      return;
+    }
+    if (u.status === 'inactive') {
+      hideLoader();
+      errEl.textContent = 'This account is inactive. Contact a super admin.';
+      errEl.classList.add('show');
+      return;
+    }
+    session = {
+      passcode:     pc,
+      username:     u.username || pc,
+      display_name: u.display_name || u.username || pc,
+      email:        u.email || '',
+      store_id:     u.store_id || '*',
+      store_name:   u.store_name || (u.role === 'super_admin' ? 'All Branches' : '—'),
+      role:         u.role
+    };
+    saveSession(session);
+    await logAudit('login', 'users', pc, { role: u.role });
+    pcEl.value = '';
+    hideLoader();
+    await bootApp();
+  } catch (e) {
+    hideLoader();
+    console.error('[login]', e);
+    errEl.textContent = 'Login failed: ' + (e?.message || 'unknown error');
+    errEl.classList.add('show');
+  }
+}
+async function handleLogout() {
+  if (session) await logAudit('logout', 'users', session.passcode, {});
+  clearSession();
+  session = null;
+  if (_dashUnsub) { _dashUnsub(); _dashUnsub = null; }
+  _ordersCache = []; _ordersFiltered = [];
+  $('#view-app').classList.remove('active');
+  $('#view-login').classList.add('active');
+}
+
+/* ===================== App Boot ===================== */
+async function bootApp() {
+  showLoader('Loading workspace...');
+  try {
+    // Reset any session-scoped state from previous user (P0-5 hardening):
+    // _currentBranchView is super_admin's branch-switcher value. If a
+    // super_admin logged out and a store_admin then logs in via the same
+    // browser session, we must not carry over the switcher state.
+    _currentBranchView = '';
+
+    // Render user chip
+    $('#user-avatar').textContent = (session.display_name || session.username || '?').charAt(0).toUpperCase();
+    $('#user-name').textContent   = session.display_name || session.username;
+    $('#user-role').textContent   = session.role === 'super_admin' ? 'Super Admin' :
+                                    (session.role === 'store_admin' ? `Manager · ${session.store_name}` : 'Staff');
+
+    // Show/hide super-admin-only chrome
+    const isSA = session.role === 'super_admin';
+    document.body.classList.toggle('is-sa', isSA);
+    $$('.sa-only').forEach(el => { el.style.display = isSA ? '' : 'none'; });
+
+    // Load reference data in parallel
+    await Promise.all([loadStores(), loadAgents(), loadZones(), loadUsersIfMgr()]);
+
+    // Populate all branch / driver / zone selects across the app
+    populateBranchSelects();
+    populateDriverSelects();
+    populateZoneSelects();
+
+    // Default date ranges (today)
+    const r = getPresetRange('today');
+    ['of-from','rep-from','auf-from'].forEach(id => { const el = $('#'+id); if (el) el.value = r.fromStr; });
+    ['of-to','rep-to','auf-to'].forEach(id => { const el = $('#'+id); if (el) el.value = r.toStr; });
+
+    // Switch view
+    $('#view-login').classList.remove('active');
+    $('#view-app').classList.add('active');
+
+    // Default tab: dashboard
+    await activateTab('dashboard');
+    hideLoader();
+  } catch (e) {
+    hideLoader();
+    console.error('[boot]', e);
+    showToast('Failed to load workspace: ' + (e?.message || 'unknown'), 'error', 5000);
+  }
+}
+
+/* ===================== Reference Data Loaders ===================== */
+async function loadStores() {
+  _storesMap = {};
+  const snap = await getDocs(collection(db, 'stores'));
+  snap.forEach(d => { _storesMap[d.id] = { name: d.data().name || d.id }; });
+}
+async function loadAgents() {
+  _agentsMap = {};
+  _agentsList = [];
+  const snap = await getDocs(collection(db, 'agents'));
+  snap.forEach(d => {
+    const data = d.data();
+    _agentsMap[d.id] = {
+      name:     data.name || d.id,
+      store_id: data.store_id || '',
+      password: data.password || '',
+      status:   data.status || 'active',
+      phone:    data.phone || ''
+    };
+    _agentsList.push({ id: d.id, ...data });
+  });
+}
+async function loadZones() {
+  _zonesMap = {};
+  _zonesList = [];
+  const snap = await getDocs(collection(db, 'zones'));
+  snap.forEach(d => {
+    const data = d.data();
+    _zonesMap[d.id] = {
+      id:           data.id || d.id,
+      name:         data.name || d.id,
+      price:        Number(data.price) || 0,
+      sla_minutes:  Number(data.sla_minutes) || 60,
+      store_id:     data.store_id || '',
+      status:       data.status || 'active'
+    };
+    _zonesList.push({ docId: d.id, ...data });
+  });
+}
+async function loadUsersIfMgr() {
+  // Only super_admin and store_admin can see /users tab; load on boot for the chip + admin tab
+  _usersList = [];
+  try {
+    const snap = await getDocs(collection(db, 'users'));
+    snap.forEach(d => _usersList.push({ passcode: d.id, ...d.data() }));
+  } catch (e) {
+    console.warn('[users load]', e?.message);
+  }
+}
+
+/* ===================== Populate Selects ===================== */
+function populateBranchSelects() {
+  // Branch switcher (super-admin) and all filter dropdowns
+  const isSA = session.role === 'super_admin';
+  const switcher = $('#branch-switcher');
+  if (switcher) {
+    switcher.innerHTML = '<option value="">All Branches</option>' +
+      Object.entries(_storesMap)
+        .sort((a,b) => (a[1].name||'').localeCompare(b[1].name||''))
+        .map(([id, s]) => `<option value="${escapeHtml(id)}">${escapeHtml(s.name)}</option>`)
+        .join('');
+  }
+  if (isSA) {
+    $('#branch-switcher-wrap').style.display = '';
+  }
+
+  // For all filter branch selects: super_admin sees all; store_admin sees only their branch (locked).
+  // SPECIAL CASE: /transfers filters (tf-from, tf-to). A branch manager's
+  // transfers always involve their branch on EITHER side. Locking both
+  // dropdowns to the same branch AND-filters to an impossible set
+  // (from==to is rule-forbidden), so transfers always show empty. Instead
+  // we leave the dropdowns unlocked and apply the OR-scope at the data layer.
+  const branchSelectIds = ['of-branch','rep-branch','uf-branch','af-branch','zf-branch'];
+  const transferFilterIds = ['tf-from','tf-to'];
+  const formBranchIds = ['user-branch-sel','agent-branch','zone-branch'];
+
+  const allBranchOpts = Object.entries(_storesMap)
+    .sort((a,b) => (a[1].name||'').localeCompare(b[1].name||''))
+    .map(([id, s]) => `<option value="${escapeHtml(id)}">${escapeHtml(s.name)}</option>`)
+    .join('');
+
+  branchSelectIds.forEach(id => {
+    const el = $('#'+id);
+    if (!el) return;
+    if (isSA) {
+      el.innerHTML = '<option value="">All</option>' + allBranchOpts;
+    } else {
+      const sname = _storesMap[session.store_id]?.name || session.store_id;
+      el.innerHTML = `<option value="${escapeHtml(session.store_id)}">${escapeHtml(sname)}</option>`;
+      el.value = session.store_id;
+      el.disabled = true;
+    }
+  });
+
+  transferFilterIds.forEach(id => {
+    const el = $('#'+id);
+    if (!el) return;
+    el.innerHTML = '<option value="">All</option>' + allBranchOpts;
+    el.disabled = false;
+  });
+
+  formBranchIds.forEach(id => {
+    const el = $('#'+id);
+    if (!el) return;
+    if (isSA) {
+      el.innerHTML = allBranchOpts;
+    } else {
+      const sname = _storesMap[session.store_id]?.name || session.store_id;
+      el.innerHTML = `<option value="${escapeHtml(session.store_id)}">${escapeHtml(sname)}</option>`;
+      el.value = session.store_id;
+      // Branch managers can only create users in their own branch
+    }
+  });
+}
+function populateDriverSelects() {
+  const isSA = session.role === 'super_admin';
+  const list = isSA ? _agentsList : _agentsList.filter(a => a.store_id === session.store_id);
+  const opts = list
+    .filter(a => (a.status || 'active') === 'active')
+    .sort((a,b) => (a.name||'').localeCompare(b.name||''))
+    .map(a => `<option value="${escapeHtml(a.id)}">${escapeHtml(a.name)} (${escapeHtml(a.id)})</option>`)
+    .join('');
+  const el = $('#of-driver');
+  if (el) el.innerHTML = '<option value="">All</option>' + opts;
+}
+function populateZoneSelects() {
+  const isSA = session.role === 'super_admin';
+  const list = isSA ? _zonesList : _zonesList.filter(z => z.store_id === session.store_id);
+  const opts = list
+    .filter(z => (z.status || 'active') === 'active')
+    .sort((a,b) => (a.name||'').localeCompare(b.name||''))
+    .map(z => `<option value="${escapeHtml(z.docId)}">${escapeHtml(z.name)} · ${escapeHtml(_storesMap[z.store_id]?.name || z.store_id)}</option>`)
+    .join('');
+  const el = $('#of-zone');
+  if (el) el.innerHTML = '<option value="">All</option>' + opts;
+}
+
+/* ===================== Tab Navigation ===================== */
+async function activateTab(name) {
+  // Detach dashboard listener if leaving
+  if (name !== 'dashboard' && _dashUnsub) { _dashUnsub(); _dashUnsub = null; }
+
+  $$('.nav-item').forEach(a => a.classList.toggle('active', a.dataset.tab === name));
+  $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-'+name));
+  const titleMap = {
+    dashboard:'Dashboard', orders:'Orders', transfers:'Transfers',
+    analytics:'Analytics', reports:'Reports', users:'Users',
+    agents:'Drivers', zones:'Zones', audit:'Audit Log'
+  };
+  $('#topbar-title').textContent = titleMap[name] || 'Dashboard';
+  $('#sidebar')?.classList.remove('open');
+  $('#sidebar-back')?.classList.remove('show');
+
+  if (name === 'dashboard')   await loadDashboard('today');
+  if (name === 'orders')      await runOrdersSearch();
+  if (name === 'transfers')   await loadTransfers();
+  if (name === 'analytics')   await loadAnalytics('week');
+  if (name === 'reports')     { /* generation on demand */ }
+  if (name === 'users')       renderUsersTab();
+  if (name === 'agents')      renderAgentsTab();
+  if (name === 'zones')       renderZonesTab();
+  if (name === 'audit')       await loadAuditLog();
+}
+/* ===================== Core Data Fetch ===================== */
+/**
+ * Load orders (handover_log joined with delivery_confirm) for the given filter window.
+ * Branch scoping is applied based on session role + branch switcher.
+ *
+ * Firestore query strategy:
+ *  - Single branch (store_admin OR super_admin with branch selected):
+ *      where('store_id','==',b).where('handover_ts','>=',from).where('handover_ts','<=',to)
+ *  - All branches (super_admin, no switcher):
+ *      where('handover_ts','>=',from).where('handover_ts','<=',to)   (no store_id filter)
+ *
+ * Then we fetch matching delivery_confirm docs and LEFT JOIN on docKey.
+ */
+async function fetchOrders(fromDate, toDate) {
+  const branches = getScopedBranchIds(); // null = all, [] = none, [id,...] = specific
+  if (Array.isArray(branches) && branches.length === 0) return [];
+
+  // CRITICAL: defense-in-depth branch scope. Even if _currentBranchView gets
+  // corrupted or getScopedBranchIds() returns wrong data due to a session
+  // restore race, we re-enforce here that store_admin can NEVER see anything
+  // outside their assigned branch. This is the last line of defense for the
+  // data-isolation guarantee promised to branch managers.
+  const scopedBranches = (session?.role === 'store_admin')
+    ? [session.store_id]
+    : branches;
+  if (session?.role === 'store_admin' && (!session.store_id || session.store_id === '*')) {
+    console.error('[fetchOrders] store_admin has no valid store_id — refusing query');
+    return [];
+  }
+
+  const fromTs = Timestamp.fromDate(fromDate);
+  const toTs   = Timestamp.fromDate(toDate);
+
+  // ARCHITECTURAL NOTE — Composite-index avoidance strategy
+  // -------------------------------------------------------------------------
+  // Combining `where('store_id','==',X)` + `where('handover_ts','>=',Y)` +
+  // `orderBy('handover_ts')` requires a Firestore composite index. We don't
+  // want to force the user to manually create indexes through the Firebase
+  // Console every time a new query shape appears.
+  //
+  // Instead: we use ONLY single-field queries (date-range OR store_id, not
+  // both) and apply the second filter client-side after fetching. The single
+  // composite index Firestore creates automatically (handover_ts ASC by
+  // default) is sufficient.
+  //
+  // Capacity: at 150 orders/branch/day × 9 branches × 31 days = ~42k docs
+  // for an "All Time" worst case. We cap at 5000 per fetch to bound memory;
+  // user can narrow the date range if they need older data.
+
+  // ---- handover_log ----
+  let handoverDocs = [];
+  try {
+    const q = query(
+      collection(db, 'handover_log'),
+      where('handover_ts', '>=', fromTs),
+      where('handover_ts', '<=', toTs),
+      orderBy('handover_ts', 'desc'),
+      limit(5000)
+    );
+    const snap = await getDocs(q);
+    snap.forEach(d => handoverDocs.push({ docKey: d.id, ...d.data() }));
+  } catch (e) {
+    console.error('[fetchOrders] handover_log query failed:', e);
+    throw e; // bubble up so the UI shows the error instead of silently empty
+  }
+
+  // Apply branch scope client-side. This is the SAME filter that the query
+  // would have done server-side — moving it here removes the composite-index
+  // requirement without changing the result set.
+  if (scopedBranches !== null) {
+    const allowSet = new Set(scopedBranches);
+    handoverDocs = handoverDocs.filter(d => allowSet.has(d.store_id));
+  }
+
+  if (handoverDocs.length === 0) return [];
+
+  // ---- delivery_confirm ----
+  // Confirms may arrive minutes/hours after handover, so widen "to" by +1 day.
+  const cfToTs = Timestamp.fromDate(new Date(toDate.getTime() + 24*60*60*1000));
+  const confirmMap = {};
+  try {
+    const cq = query(
+      collection(db, 'delivery_confirm'),
+      where('confirm_ts', '>=', fromTs),
+      where('confirm_ts', '<=', cfToTs),
+      orderBy('confirm_ts', 'desc'),
+      limit(5000)
+    );
+    const csnap = await getDocs(cq);
+    csnap.forEach(d => {
+      const data = d.data();
+      // Apply same branch scope here.
+      if (scopedBranches !== null) {
+        const allowSet = new Set(scopedBranches);
+        if (!allowSet.has(data.store_id)) return;
+      }
+      confirmMap[d.id] = { docKey: d.id, ...data };
+    });
+  } catch (e) {
+    console.warn('[fetchOrders] delivery_confirm query failed (non-fatal):', e);
+    // Continue without confirm join — handover rows will still show.
+  }
+
+  // ---- LEFT JOIN + enrich ----
+  return handoverDocs.map(h => {
+    const c = confirmMap[h.docKey] || null;
+    const zone = h.zone_id ? _zonesMap[h.zone_id] : null;
+    const zoneShort = (h.zone_id || '').split('_')[1] || '';
+    const isFreeZone = zoneShort === 'free' || /^free/i.test(h.zone_id || '');
+    let shippingFee = 0;
+    if (isFreeZone) shippingFee = Number(h.free_price) || 0;
+    else if (zone)  shippingFee = Number(zone.price) || 0;
+
+    return {
+      docKey:           h.docKey,
+      order_id:         h.order_id,
+      store_id:         h.store_id,
+      store_name:       _storesMap[h.store_id]?.name || h.store_id,
+      zone_id:          h.zone_id || null,
+      zone_name:        zone ? zone.name : (isFreeZone ? 'Free Zone' : (h.zone_id || '—')),
+      zone_sla_minutes: zone ? zone.sla_minutes : 60,
+      agent_id:         h.agent_id || '',
+      agent_name:       _agentsMap[h.agent_id]?.name || h.agent_id || '—',
+      handover_by:      h.handover_by || '',
+      handover_ts:      h.handover_ts || null,
+      status:           h.status || 'Handed Over',
+      isVoided:         !!h.isVoided,
+      voidedAt:         h.voidedAt || null,
+      voidedBy:         h.voidedBy || '',
+      voidReason:       h.voidReason || '',
+      notes:            h.notes || '',
+      free_price:       Number(h.free_price) || 0,
+
+      // From confirm
+      confirm_ts:       c?.confirm_ts || null,
+      duration_minutes: c?.duration_minutes ?? null,
+      sla_status:       c?.sla_status || null,
+      payment_method:   c?.payment_method || null,
+      amount_collected: c?.amount_collected ?? null,
+      receipt_number:   c?.receipt_number || null,
+      confirm_notes:    c?.notes || '',
+
+      shipping_fee:     shippingFee,
+      has_confirm:      !!c
+    };
+  });
+}
+
+/* ===================== Dashboard ===================== */
+async function loadDashboard(preset='today') {
+  showLoader('Loading dashboard...');
+  try {
+    // Highlight preset
+    $$('#dash-preset-row .preset-btn').forEach(b => b.classList.toggle('active', b.dataset.preset === preset));
+
+    const r = getPresetRange(preset);
+    const rows = await fetchOrders(r.from, r.to);
+    renderDashboardKPIs(rows);
+    renderDashboardRecent(rows);
+
+    // Real-time top-20 listener (independent of preset → always live)
+    setupDashboardLive();
+
+    // Pending transfers approvals panel (non-blocking).
+    loadPendingTransfersPanel().catch(e => console.warn('[dash-tf]', e));
+
+    hideLoader();
+  } catch (e) {
+    hideLoader();
+    console.error('[dashboard]', e);
+    showToast('Dashboard load failed: ' + (e?.message || 'error'), 'error');
+  }
+}
+function renderDashboardKPIs(rows) {
+  const live  = rows.filter(r => !r.isVoided);
+  const total = live.length;
+  const delivered = live.filter(r => r.status === 'Delivered').length;
+  const partial   = live.filter(r => r.status === 'Partially Delivered').length;
+  const pending   = live.filter(r => r.status === 'Handed Over').length;
+  const failed    = live.filter(r => ['Returned','No Answer','Postponed'].includes(r.status)).length;
+
+  const driverIds = new Set(live.filter(r => r.status === 'Delivered' || r.status === 'Partially Delivered').map(r => r.agent_id).filter(Boolean));
+  const activeDrivers = driverIds.size;
+
+  const durs = live.filter(r => (r.status === 'Delivered' || r.status === 'Partially Delivered') && typeof r.duration_minutes === 'number').map(r => r.duration_minutes);
+  const avgTime = durs.length ? Math.round(durs.reduce((a,b)=>a+b,0)/durs.length) : null;
+
+  const revenue = live
+    .filter(r => r.status === 'Delivered' || r.status === 'Partially Delivered')
+    .reduce((s,r) => s + (Number(r.shipping_fee)||0), 0);
+
+  // Fastest driver: smallest avg duration with ≥3 deliveries
+  const perDriver = {};
+  live.forEach(r => {
+    if ((r.status === 'Delivered' || r.status === 'Partially Delivered') && typeof r.duration_minutes === 'number') {
+      const k = r.agent_id || 'unknown';
+      perDriver[k] = perDriver[k] || { sum:0, n:0, name: r.agent_name };
+      perDriver[k].sum += r.duration_minutes; perDriver[k].n++;
+    }
+  });
+  let fastest = null;
+  Object.entries(perDriver).forEach(([k, v]) => {
+    if (v.n < 3) return;
+    const avg = v.sum / v.n;
+    if (!fastest || avg < fastest.avg) fastest = { id:k, name:v.name, avg, n:v.n };
+  });
+
+  $('#kpi-total').textContent     = total.toLocaleString();
+  $('#kpi-total-sub').textContent = `${rows.filter(r=>r.isVoided).length} voided excluded`;
+  $('#kpi-delivered').textContent = (delivered + partial).toLocaleString();
+  $('#kpi-delivered-sub').textContent = total > 0 ? `${Math.round((delivered+partial)/total*100)}% success rate` : '—';
+  $('#kpi-pending').textContent   = pending.toLocaleString();
+  $('#kpi-failed').textContent    = failed.toLocaleString();
+  $('#kpi-failed-sub').textContent= `R: ${live.filter(r=>r.status==='Returned').length} · NA: ${live.filter(r=>r.status==='No Answer').length} · Postp: ${live.filter(r=>r.status==='Postponed').length}`;
+  $('#kpi-drivers').textContent   = activeDrivers.toLocaleString();
+  $('#kpi-avg-time').textContent  = avgTime !== null ? formatDuration(avgTime) : '—';
+  $('#kpi-revenue').textContent   = formatEGP(revenue);
+  $('#kpi-fastest').textContent   = fastest ? fastest.name : '—';
+  $('#kpi-fastest-sub').textContent = fastest ? `${formatDuration(Math.round(fastest.avg))} avg · ${fastest.n} deliveries` : '—';
+}
+function renderDashboardRecent(rows) {
+  const tbody = $('#dashboard-recent-body');
+  if (!rows || rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><span class="ico">📭</span>No orders yet in this period</td></tr>';
+    return;
+  }
+  const top = rows.slice(0, 20);
+  tbody.innerHTML = top.map(r => `
+    <tr ${r.isVoided ? 'class="voided"' : ''}>
+      <td class="mono">${escapeHtml(r.order_id)}</td>
+      <td>${escapeHtml(r.store_name)}</td>
+      <td>${escapeHtml(r.zone_name)}</td>
+      <td>${escapeHtml(r.agent_name)}</td>
+      <td>${getStatusBadge(r.status, r.isVoided)}</td>
+      <td>${formatTs(r.handover_ts)}</td>
+      <td>${typeof r.duration_minutes === 'number' ? formatDuration(r.duration_minutes) : '—'}</td>
+    </tr>
+  `).join('');
+}
+function setupDashboardLive() {
+  if (_dashUnsub) { _dashUnsub(); _dashUnsub = null; }
+  const branches = getScopedBranchIds();
+
+  // Hard-enforce store_admin scope (defense-in-depth — see fetchOrders).
+  const scopedBranches = (session?.role === 'store_admin')
+    ? [session.store_id]
+    : branches;
+  if (session?.role === 'store_admin' && (!session.store_id || session.store_id === '*')) {
+    console.error('[dash live] store_admin has no valid store_id — listener suppressed');
+    return;
+  }
+
+  // Single-field listener: order by recency only. Branch filtering happens
+  // client-side after each snapshot. This sidesteps composite indexes which
+  // would require manual creation in Firebase Console for the
+  // (store_id ASC, handover_ts DESC) shape.
+  //
+  // We pull 100 (vs the 20 we display) so that after client-side filtering
+  // a single-branch manager still has ≥20 rows to show. Worst case scenario:
+  // 100 recent handovers across 9 branches → roughly 11 per branch. If the
+  // user's branch is quieter, the live feed may briefly look short until
+  // older docs catch up — acceptable since the dashboard date range presets
+  // already fetch a fuller history via fetchOrders.
+  const fetchLimit = (scopedBranches === null) ? 20 : 100;
+  const q = query(
+    collection(db, 'handover_log'),
+    orderBy('handover_ts', 'desc'),
+    limit(fetchLimit)
+  );
+
+  _dashUnsub = onSnapshot(q, snap => {
+    const allowSet = scopedBranches ? new Set(scopedBranches) : null;
+    const rows = [];
+    snap.forEach(d => {
+      const h = d.data();
+      // Apply branch scope client-side
+      if (allowSet && !allowSet.has(h.store_id)) return;
+      const zone = h.zone_id ? _zonesMap[h.zone_id] : null;
+      rows.push({
+        docKey: d.id,
+        order_id: h.order_id,
+        store_name: _storesMap[h.store_id]?.name || h.store_id,
+        zone_name: zone ? zone.name : (h.zone_id || '—'),
+        agent_name: _agentsMap[h.agent_id]?.name || h.agent_id || '—',
+        status: h.status,
+        isVoided: !!h.isVoided,
+        handover_ts: h.handover_ts,
+        duration_minutes: null
+      });
+    });
+    // Trim to 20 after filtering — the display cap
+    renderDashboardRecent(rows.slice(0, 20));
+  }, err => console.warn('[dash live]', err?.message));
+}
+
+/**
+ * Dashboard panel: pending inter-branch transfers awaiting a decision.
+ * Super_admin: all pending. Store_admin: transfers involving their branch.
+ * No new Firestore composite index required (orderBy created_at only).
+ */
+async function loadPendingTransfersPanel() {
+  const panel  = $('#dash-pending-transfers');
+  const tbody  = $('#dash-pending-tf-body');
+  const countEl = $('#dash-tf-count');
+  const subEl  = $('#dash-tf-sub');
+  if (!panel || !tbody) return;
+
+  try {
+    const q = query(
+      collection(db, 'transfers'),
+      orderBy('created_at', 'desc'),
+      limit(200)
+    );
+    const snap = await getDocs(q);
+    let pending = [];
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.status === 'Pending') pending.push({ id: d.id, ...data });
+    });
+
+    if (session.role === 'store_admin') {
+      pending = pending.filter(t =>
+        t.to_store_id === session.store_id || t.from_store_id === session.store_id
+      );
+      subEl.textContent = `Transfers involving your branch awaiting a decision. Click any row to review.`;
+    } else {
+      subEl.textContent = `All pending transfers system-wide. Click any row to review and decide.`;
+    }
+
+    // Keep cache in sync so clicking Decide doesn't need a refetch.
+    pending.forEach(t => {
+      const idx = _transfersCache.findIndex(c => c.id === t.id);
+      if (idx >= 0) _transfersCache[idx] = t;
+      else _transfersCache.push(t);
+    });
+
+    countEl.textContent = pending.length.toLocaleString();
+
+    if (pending.length === 0) {
+      panel.style.display = 'none';
+      return;
+    }
+    panel.style.display = '';
+
+    tbody.innerHTML = pending.slice(0, 10).map(t => {
+      const itemsTxt = Array.isArray(t.items)
+        ? t.items.map(i => `${escapeHtml(i.name||i)}${i.qty?` ×${i.qty}`:''}`).join(', ')
+        : (t.items ? escapeHtml(String(t.items)) : '—');
+      const shortItems = itemsTxt.length > 50 ? escapeHtml(itemsTxt.slice(0,50)) + '…' : escapeHtml(itemsTxt);
+      const fromName = t.from_store_name || _storesMap[t.from_store_id]?.name || t.from_store_id;
+      const toName   = t.to_store_name   || _storesMap[t.to_store_id]?.name   || t.to_store_id;
+      return `
+        <tr>
+          <td>${escapeHtml(fromName)}</td>
+          <td>${escapeHtml(toName)}</td>
+          <td title="${escapeHtml(itemsTxt)}">${shortItems}</td>
+          <td>${escapeHtml(t.created_by_name || t.created_by_agent || '—')}</td>
+          <td>${formatTs(t.created_at)}</td>
+          <td class="actions">
+            <button class="btn btn-primary btn-sm" data-act="dash-tf-decide" data-id="${escapeHtml(t.id)}">Decide</button>
+          </td>
+        </tr>
+      `;
+    }).join('');
+  } catch(e) {
+    console.warn('[dash-tf load]', e);
+    panel.style.display = 'none';
+  }
+}
+
+/* ===================== Orders Tab ===================== */
+async function runOrdersSearch() {
+  showLoader('Loading orders...');
+  try {
+    const fromStr = $('#of-from').value;
+    const toStr   = $('#of-to').value;
+    if (!fromStr || !toStr) { hideLoader(); showToast('Please select a date range', 'warning'); return; }
+    const from = new Date(fromStr + 'T00:00:00');
+    const to   = new Date(toStr + 'T23:59:59.999');
+
+    // Optionally override session branch for super_admin (filter dropdown)
+    const oldBranchView = _currentBranchView;
+    const filterBranch  = $('#of-branch').value;
+    if (session.role === 'super_admin' && filterBranch) {
+      _currentBranchView = filterBranch;
+    }
+    let rows = await fetchOrders(from, to);
+    _currentBranchView = oldBranchView; // restore
+
+    // Client-side filters
+    const fZone   = $('#of-zone').value;
+    const fDriver = $('#of-driver').value;
+    const fStatus = $('#of-status').value;
+    const fSLA    = $('#of-sla').value;
+    const fOrder  = ($('#of-order').value || '').trim().toLowerCase();
+    const fDurMin = $('#of-dur-min').value !== '' ? Number($('#of-dur-min').value) : null;
+    const fDurMax = $('#of-dur-max').value !== '' ? Number($('#of-dur-max').value) : null;
+    const fFeeMin = $('#of-fee-min').value !== '' ? Number($('#of-fee-min').value) : null;
+    const fFeeMax = $('#of-fee-max').value !== '' ? Number($('#of-fee-max').value) : null;
+
+    rows = rows.filter(r => {
+      if (fZone && r.zone_id !== fZone) return false;
+      if (fDriver && r.agent_id !== fDriver) return false;
+      if (fStatus) {
+        if (fStatus === 'Voided' && !r.isVoided) return false;
+        if (fStatus !== 'Voided' && (r.isVoided || r.status !== fStatus)) return false;
+      }
+      if (fSLA) {
+        if (fSLA === 'On Time'  && r.sla_status !== 'On Time')  return false;
+        if (fSLA === 'Delayed'  && r.sla_status !== 'Delayed')  return false;
+        if (fSLA === 'Pending'  && r.sla_status)                return false;
+      }
+      if (fOrder && !String(r.order_id).toLowerCase().includes(fOrder)) return false;
+      if (fDurMin !== null && (r.duration_minutes ?? -1) < fDurMin) return false;
+      if (fDurMax !== null && (r.duration_minutes ?? Infinity) > fDurMax) return false;
+      if (fFeeMin !== null && r.shipping_fee < fFeeMin) return false;
+      if (fFeeMax !== null && r.shipping_fee > fFeeMax) return false;
+      return true;
+    });
+
+    _ordersCache    = rows;
+    _ordersFiltered = rows.slice();
+    _ordersPage     = 1;
+    applyOrdersSort();
+    renderOrdersTable();
+    hideLoader();
+  } catch (e) {
+    hideLoader();
+    console.error('[orders]', e);
+    showToast('Orders search failed: ' + (e?.message || 'error'), 'error', 5000);
+  }
+}
+function applyOrdersSort() {
+  const { col, dir } = _ordersSort;
+  const m = dir === 'asc' ? 1 : -1;
+  _ordersFiltered.sort((a, b) => {
+    let av = a[col], bv = b[col];
+    if (col === 'handover_ts' || col === 'confirm_ts') {
+      av = tsToDate(av)?.getTime() || 0;
+      bv = tsToDate(bv)?.getTime() || 0;
+    } else if (typeof av === 'string' || typeof bv === 'string') {
+      av = String(av ?? '').toLowerCase(); bv = String(bv ?? '').toLowerCase();
+      return av < bv ? -1*m : (av > bv ? 1*m : 0);
+    } else {
+      av = Number(av ?? 0); bv = Number(bv ?? 0);
+    }
+    return (av - bv) * m;
+  });
+}
+function renderOrdersTable() {
+  const tbody = $('#orders-body');
+  const total = _ordersFiltered.length;
+  const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  if (_ordersPage > pages) _ordersPage = pages;
+  const start = (_ordersPage - 1) * PAGE_SIZE;
+  const slice = _ordersFiltered.slice(start, start + PAGE_SIZE);
+
+  if (slice.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="14" class="empty-state"><span class="ico">📋</span>No orders match the filters</td></tr>';
+  } else {
+    tbody.innerHTML = slice.map(r => {
+      const canVoid = (session.role === 'super_admin') || (session.role === 'store_admin' && r.store_id === session.store_id);
+      const actionBtn = r.isVoided
+        ? (canVoid ? `<button class="btn btn-outline btn-sm" data-act="reopen" data-key="${escapeHtml(r.docKey)}">↺ Reopen</button>` : '')
+        : (canVoid ? `<button class="btn btn-danger btn-sm" data-act="void" data-key="${escapeHtml(r.docKey)}">✕ Void</button>` : '');
+      return `
+        <tr ${r.isVoided ? 'class="voided"' : ''}>
+          <td class="mono">${escapeHtml(r.order_id)}</td>
+          <td>${escapeHtml(r.store_name)}</td>
+          <td>${escapeHtml(r.zone_name)}</td>
+          <td>${escapeHtml(r.agent_name)}</td>
+          <td>${getStatusBadge(r.status, r.isVoided)}</td>
+          <td>${r.sla_status ? `<span class="badge ${r.sla_status==='On Time'?'b-ontime':'b-delayed'}">${r.sla_status}</span>` : '—'}</td>
+          <td>${formatTs(r.handover_ts)}</td>
+          <td>${r.confirm_ts ? formatTs(r.confirm_ts) : '—'}</td>
+          <td>${typeof r.duration_minutes === 'number' ? formatDuration(r.duration_minutes) : '—'}</td>
+          <td>${formatEGP(r.shipping_fee)}</td>
+          <td>${r.amount_collected != null ? formatEGP(r.amount_collected) : '—'}</td>
+          <td>${r.voidedAt ? formatTs(r.voidedAt) : (r.confirm_ts ? formatTs(r.confirm_ts) : formatTs(r.handover_ts))}</td>
+          <td title="${escapeHtml((r.notes||'') + (r.confirm_notes?' · '+r.confirm_notes:''))}">${escapeHtml((r.notes || r.confirm_notes || '').slice(0,40))}${(r.notes||r.confirm_notes||'').length>40?'…':''}</td>
+          <td class="actions">
+            <button class="btn btn-outline btn-sm" data-act="view" data-key="${escapeHtml(r.docKey)}">Details</button>
+            ${actionBtn}
+          </td>
+        </tr>
+      `;
+    }).join('');
+  }
+  $('#orders-count').textContent = `${total.toLocaleString()} records${total>PAGE_SIZE? ` · page ${_ordersPage}/${pages}` : ''}`;
+
+  // Pagination
+  const pag = $('#orders-pagination');
+  if (pages <= 1) { pag.innerHTML = ''; }
+  else {
+    let html = `<button class="pg-btn" data-pg="prev" ${_ordersPage<=1?'disabled':''}>‹ Prev</button>`;
+    const windowSize = 5;
+    let s = Math.max(1, _ordersPage - 2), e = Math.min(pages, s + windowSize - 1);
+    s = Math.max(1, e - windowSize + 1);
+    for (let i = s; i <= e; i++) {
+      html += `<button class="pg-btn ${i===_ordersPage?'active':''}" data-pg="${i}">${i}</button>`;
+    }
+    html += `<button class="pg-btn" data-pg="next" ${_ordersPage>=pages?'disabled':''}>Next ›</button>`;
+    pag.innerHTML = html;
+  }
+
+  // Sort header arrows
+  $$('#orders-table thead th[data-sort]').forEach(th => {
+    const col = th.dataset.sort;
+    th.classList.toggle('sorted', col === _ordersSort.col);
+    th.dataset.dir = (col === _ordersSort.col) ? _ordersSort.dir : '';
+  });
+}
+
+/* ===================== Order Details Modal ===================== */
+function openOrderDetails(docKey) {
+  const r = _ordersCache.find(x => x.docKey === docKey) || _ordersFiltered.find(x => x.docKey === docKey);
+  if (!r) { showToast('Order not found in current view', 'warning'); return; }
+  const body = $('#modal-order-body');
+  const foot = $('#modal-order-foot');
+  body.innerHTML = `
+    <div class="detail-grid">
+      <div class="dl"><div class="dt">Order ID</div><div class="dd mono">${escapeHtml(r.order_id)}</div></div>
+      <div class="dl"><div class="dt">Branch</div><div class="dd">${escapeHtml(r.store_name)}</div></div>
+      <div class="dl"><div class="dt">Zone</div><div class="dd">${escapeHtml(r.zone_name)}</div></div>
+      <div class="dl"><div class="dt">Shipping Fee</div><div class="dd">${formatEGP(r.shipping_fee)}</div></div>
+      <div class="dl"><div class="dt">Driver</div><div class="dd">${escapeHtml(r.agent_name)} ${r.agent_id ? `<span class="mono" style="color:var(--muted);font-size:11px">(${escapeHtml(r.agent_id)})</span>`:''}</div></div>
+      <div class="dl"><div class="dt">Handover By</div><div class="dd">${escapeHtml(r.handover_by||'—')}</div></div>
+      <div class="dl"><div class="dt">Status</div><div class="dd">${getStatusBadge(r.status, r.isVoided)}</div></div>
+      <div class="dl"><div class="dt">SLA</div><div class="dd">${r.sla_status||'Pending'}</div></div>
+      <div class="dl"><div class="dt">Handover Time</div><div class="dd">${formatTs(r.handover_ts)}</div></div>
+      <div class="dl"><div class="dt">Confirm Time</div><div class="dd">${r.confirm_ts ? formatTs(r.confirm_ts) : '—'}</div></div>
+      <div class="dl"><div class="dt">Duration</div><div class="dd">${typeof r.duration_minutes === 'number' ? formatDuration(r.duration_minutes) : '—'}</div></div>
+      <div class="dl"><div class="dt">Payment Method</div><div class="dd">${escapeHtml(r.payment_method||'—')}</div></div>
+      <div class="dl"><div class="dt">Amount Collected</div><div class="dd">${r.amount_collected != null ? formatEGP(r.amount_collected) : '—'}</div></div>
+      <div class="dl"><div class="dt">Receipt #</div><div class="dd">${escapeHtml(r.receipt_number||'—')}</div></div>
+    </div>
+    ${r.notes ? `<div class="detail-block"><div class="dt">Handover Notes</div><div class="dd">${escapeHtml(r.notes)}</div></div>` : ''}
+    ${r.confirm_notes ? `<div class="detail-block"><div class="dt">Confirm Notes</div><div class="dd">${escapeHtml(r.confirm_notes)}</div></div>` : ''}
+    ${r.isVoided ? `<div class="detail-block void-block">
+      <div class="dt">⚠ Voided Record</div>
+      <div class="dd">By: ${escapeHtml(r.voidedBy||'—')} · ${formatTs(r.voidedAt)}</div>
+      ${r.voidReason ? `<div class="dd">Reason: ${escapeHtml(r.voidReason)}</div>` : ''}
+    </div>` : ''}
+  `;
+  const canVoid = (session.role === 'super_admin') || (session.role === 'store_admin' && r.store_id === session.store_id);
+  foot.innerHTML = `
+    <button class="btn btn-outline btn-sm" data-close="modal-order">Close</button>
+    ${canVoid ? (r.isVoided
+        ? `<button class="btn btn-success btn-sm" data-act="reopen-from-modal" data-key="${escapeHtml(r.docKey)}">↺ Reopen Order</button>`
+        : `<button class="btn btn-danger btn-sm" data-act="void-from-modal" data-key="${escapeHtml(r.docKey)}">✕ Void Order</button>`) : ''}
+  `;
+  openModal('modal-order');
+}
+
+/* ===================== Void / Reopen Flow ===================== */
+let _pendingVoidKey = null;
+let _pendingReopen  = false;
+function openVoidModal(docKey, isReopen=false) {
+  const r = _ordersCache.find(x => x.docKey === docKey) || _ordersFiltered.find(x => x.docKey === docKey);
+  if (!r) { showToast('Order not found', 'error'); return; }
+  _pendingVoidKey = docKey;
+  _pendingReopen  = isReopen;
+  $('#modal-void-summary').innerHTML = `
+    <div style="background:var(--bloom-light);padding:12px;border-radius:8px;margin-bottom:12px;border:1px solid #fcc;">
+      <div><strong>Order:</strong> <span class="mono">${escapeHtml(r.order_id)}</span></div>
+      <div><strong>Branch:</strong> ${escapeHtml(r.store_name)}</div>
+      <div><strong>Driver:</strong> ${escapeHtml(r.agent_name)}</div>
+      <div><strong>Status:</strong> ${getStatusBadge(r.status, r.isVoided)}</div>
+    </div>
+    <div style="color:var(--text);margin-bottom:8px;">
+      ${isReopen
+        ? 'Reopening will restore the order. Status will be set back to <strong>Handed Over</strong>.'
+        : 'Voiding will mark this order as cancelled. It will be <strong>excluded from all KPIs and reports</strong> but kept for audit.'}
+    </div>
+  `;
+  $('#void-reason').value = '';
+  $('#modal-void .modal-title').textContent = isReopen ? 'Reopen Order' : 'Void Order';
+  $('#btn-confirm-void').textContent = isReopen ? '↺ Confirm Reopen' : '✕ Confirm Void';
+  $('#btn-confirm-void').classList.toggle('btn-danger', !isReopen);
+  $('#btn-confirm-void').classList.toggle('btn-success', isReopen);
+  openModal('modal-void');
+}
+async function confirmVoidOrReopen() {
+  if (!_pendingVoidKey) return;
+  const reason = ($('#void-reason').value || '').trim();
+  if (!_pendingReopen && reason.length < 3) {
+    showToast('Please provide a reason (min 3 chars)', 'warning');
+    return;
+  }
+  showLoader(_pendingReopen ? 'Reopening...' : 'Voiding...');
+  try {
+    const handoverRef = doc(db, 'handover_log', _pendingVoidKey);
+    const confirmRef  = doc(db, 'delivery_confirm', _pendingVoidKey);
+    await runTransaction(db, async tx => {
+      const hSnap = await tx.get(handoverRef);
+      if (!hSnap.exists()) throw new Error('Order not found');
+      const h = hSnap.data();
+
+      // Authority check (rules will enforce too; we double-check client-side for UX)
+      if (session.role !== 'super_admin' && h.store_id !== session.store_id) {
+        throw new Error('You can only manage orders in your own branch');
+      }
+
+      const cSnap = await tx.get(confirmRef);
+      const hasConfirm = cSnap.exists();
+
+      if (_pendingReopen) {
+        // Restore handover_log: clear void flags, set status back
+        // We can't know the prior status reliably; if a confirm exists, use confirm.status; else 'Handed Over'
+        const restoredStatus = hasConfirm ? (cSnap.data().status || 'Handed Over') : 'Handed Over';
+        tx.update(handoverRef, {
+          isVoided:     false,
+          voidedAt:     null,
+          voidedBy:     null,
+          voidReason:   null,
+          status:       restoredStatus,
+          last_updated: serverTimestamp()
+        });
+        if (hasConfirm) {
+          tx.update(confirmRef, {
+            isVoided:     false,
+            voidedAt:     null,
+            voidedBy:     null,
+            voidReason:   null,
+            last_updated: serverTimestamp()
+          });
+        }
+      } else {
+        tx.update(handoverRef, {
+          isVoided:     true,
+          voidedAt:     serverTimestamp(),
+          voidedBy:     session.username,
+          voidReason:   reason,
+          status:       'Voided',
+          last_updated: serverTimestamp()
+        });
+        if (hasConfirm) {
+          tx.update(confirmRef, {
+            isVoided:     true,
+            voidedAt:     serverTimestamp(),
+            voidedBy:     session.username,
+            voidReason:   reason,
+            last_updated: serverTimestamp()
+          });
+        }
+      }
+    });
+    await logAudit(_pendingReopen ? 'order_reopen' : 'order_void', 'handover_log', _pendingVoidKey, { reason });
+    hideLoader();
+    closeModal('modal-void');
+    closeModal('modal-order');
+    showToast(_pendingReopen ? 'Order reopened' : 'Order voided', 'success');
+    _pendingVoidKey = null;
+    _pendingReopen  = false;
+    // Refresh orders + dashboard if dashboard is the active tab
+    await runOrdersSearch();
+  } catch (e) {
+    hideLoader();
+    console.error('[void/reopen]', e);
+    showToast((_pendingReopen ? 'Reopen' : 'Void') + ' failed: ' + (e?.message || 'error'), 'error', 5000);
+  }
+}
+/* ===================== Transfers Tab ===================== */
+let _transfersCache = [];
+async function loadTransfers() {
+  showLoader('Loading transfers...');
+  try {
+    const branches = getScopedBranchIds();
+    let docs = [];
+    const q = query(collection(db, 'transfers'), orderBy('created_at', 'desc'), limit(500));
+    const snap = await getDocs(q);
+    snap.forEach(d => docs.push({ id: d.id, ...d.data() }));
+    // Branch scoping (store_admin sees only theirs)
+    if (branches !== null && branches.length === 1) {
+      const b = branches[0];
+      docs = docs.filter(t => t.from_store_id === b || t.to_store_id === b);
+    } else if (Array.isArray(branches) && branches.length > 1) {
+      const set = new Set(branches);
+      docs = docs.filter(t => set.has(t.from_store_id) || set.has(t.to_store_id));
+    }
+    _transfersCache = docs;
+    renderTransfers();
+    hideLoader();
+  } catch (e) {
+    hideLoader();
+    console.error('[transfers]', e);
+    showToast('Transfers load failed: ' + (e?.message || 'error'), 'error');
+  }
+}
+function renderTransfers() {
+  const fStatus = $('#tf-status').value;
+  const fFrom   = $('#tf-from').value;
+  const fTo     = $('#tf-to').value;
+  const fDateF  = $('#tf-date-from').value ? new Date($('#tf-date-from').value + 'T00:00:00') : null;
+  const fDateT  = $('#tf-date-to').value   ? new Date($('#tf-date-to').value   + 'T23:59:59.999') : null;
+  const rows = _transfersCache.filter(t => {
+    if (fStatus && t.status !== fStatus) return false;
+    if (fFrom && t.from_store_id !== fFrom) return false;
+    if (fTo   && t.to_store_id   !== fTo)   return false;
+    if (fDateF || fDateT) {
+      const d = tsToDate(t.created_at); if (!d) return false;
+      if (fDateF && d < fDateF) return false;
+      if (fDateT && d > fDateT) return false;
+    }
+    return true;
+  });
+
+  const tbody = $('#transfers-body');
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><span class="ico">🔄</span>No transfers found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(t => {
+    const itemsTxt = Array.isArray(t.items)
+      ? t.items.map(i => `${escapeHtml(i.name||i)}${i.qty?` ×${i.qty}`:''}`).join(', ')
+      : (t.items ? escapeHtml(String(t.items)) : '—');
+    const statusCls = t.status === 'Approved' ? 'b-approved' :
+                      t.status === 'Rejected' ? 'b-rejected' : 'b-pending';
+    const canDecide = (session.role === 'super_admin' ||
+                       (session.role === 'store_admin' &&
+                        (t.to_store_id === session.store_id || t.from_store_id === session.store_id)));
+    return `
+      <tr>
+        <td>${escapeHtml(t.from_store_name || _storesMap[t.from_store_id]?.name || t.from_store_id)}</td>
+        <td>${escapeHtml(t.to_store_name   || _storesMap[t.to_store_id]?.name   || t.to_store_id)}</td>
+        <td title="${escapeHtml(itemsTxt)}">${itemsTxt.length>40?escapeHtml(itemsTxt.slice(0,40))+'…':escapeHtml(itemsTxt)}</td>
+        <td>${escapeHtml(t.created_by_name || t.created_by_agent || '—')}</td>
+        <td><span class="badge ${statusCls}">${escapeHtml(t.status||'Pending')}</span></td>
+        <td>${t.value != null ? formatEGP(t.value) : '—'}</td>
+        <td>${formatTs(t.created_at)}</td>
+        <td>${escapeHtml(t.approved_by||'—')}</td>
+        <td class="actions">
+          ${t.status === 'Pending' && canDecide
+            ? `<button class="btn btn-primary btn-sm" data-act="tf-decide" data-id="${escapeHtml(t.id)}">Decide</button>`
+            : `<button class="btn btn-outline btn-sm" data-act="tf-view" data-id="${escapeHtml(t.id)}">View</button>`}
+        </td>
+      </tr>
+    `;
+  }).join('');
+}
+let _pendingTransferId = null;
+function openTransferModal(id, readonly=false) {
+  const t = _transfersCache.find(x => x.id === id);
+  if (!t) { showToast('Transfer not found', 'error'); return; }
+  _pendingTransferId = id;
+  const itemsTxt = Array.isArray(t.items)
+    ? t.items.map(i => `${escapeHtml(i.name||i)}${i.qty?` ×${i.qty}`:''}`).join(', ')
+    : (t.items ? escapeHtml(String(t.items)) : '—');
+  $('#modal-transfer-body').innerHTML = `
+    <div class="detail-grid">
+      <div class="dl"><div class="dt">Transfer ID</div><div class="dd mono">${escapeHtml(t.id)}</div></div>
+      <div class="dl"><div class="dt">Created</div><div class="dd">${formatTs(t.created_at)}</div></div>
+      <div class="dl"><div class="dt">From</div><div class="dd">${escapeHtml(t.from_store_name || t.from_store_id)}</div></div>
+      <div class="dl"><div class="dt">To</div><div class="dd">${escapeHtml(t.to_store_name || t.to_store_id)}</div></div>
+      <div class="dl"><div class="dt">Created By</div><div class="dd">${escapeHtml(t.created_by_name||'—')} <span class="mono" style="color:var(--muted);font-size:11px">(${escapeHtml(t.created_by_role||'—')})</span></div></div>
+      <div class="dl"><div class="dt">Status</div><div class="dd">${escapeHtml(t.status||'Pending')}</div></div>
+    </div>
+    <div class="detail-block"><div class="dt">Items</div><div class="dd">${itemsTxt}</div></div>
+    ${t.notes ? `<div class="detail-block"><div class="dt">Notes</div><div class="dd">${escapeHtml(t.notes)}</div></div>` : ''}
+    ${t.status === 'Pending' && !readonly ? `
+      <div class="form-group" style="margin-top:14px;">
+        <label class="form-label">Approved Value (EGP)</label>
+        <input type="number" id="tf-value-input" class="form-control" min="0" step="0.5" value="${t.value!=null?t.value:''}" placeholder="0.00">
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">Required for approval. Leave blank to reject.</div>
+      </div>
+    ` : ''}
+    ${t.status !== 'Pending' ? `<div class="detail-block">
+      <div class="dt">Decision</div>
+      <div class="dd">${escapeHtml(t.approved_by||'—')} · ${formatTs(t.approved_at)}</div>
+      ${t.value != null ? `<div class="dd">Value: ${formatEGP(t.value)}</div>` : ''}
+    </div>` : ''}
+  `;
+  const canDecide = t.status === 'Pending' && !readonly &&
+    (session.role === 'super_admin' ||
+     (session.role === 'store_admin' &&
+       (t.to_store_id === session.store_id || t.from_store_id === session.store_id)));
+  $('#btn-tf-approve').style.display = canDecide ? '' : 'none';
+  $('#btn-tf-reject').style.display  = canDecide ? '' : 'none';
+  openModal('modal-transfer');
+}
+async function decideTransfer(decision /* 'Approved' | 'Rejected' */) {
+  if (!_pendingTransferId) return;
+  const t = _transfersCache.find(x => x.id === _pendingTransferId);
+  if (!t) return;
+  let value = null;
+  if (decision === 'Approved') {
+    const v = Number(($('#tf-value-input').value || '').trim());
+    if (isNaN(v) || v < 0) { showToast('Enter a valid value', 'warning'); return; }
+    value = v;
+  }
+  showLoader(decision === 'Approved' ? 'Approving...' : 'Rejecting...');
+  try {
+    const ref = doc(db, 'transfers', _pendingTransferId);
+    await updateDoc(ref, {
+      status:       decision,
+      value:        value, // may be null on reject
+      approved_by:  session.username,
+      approved_at:  serverTimestamp(),
+      last_updated: serverTimestamp()
+    });
+    await logAudit(decision === 'Approved' ? 'transfer_approve' : 'transfer_reject',
+      'transfers', _pendingTransferId, { value });
+    hideLoader();
+    closeModal('modal-transfer');
+    showToast(`Transfer ${decision.toLowerCase()}`, 'success');
+    _pendingTransferId = null;
+    await loadTransfers();
+  } catch (e) {
+    hideLoader();
+    console.error('[transfer decide]', e);
+    showToast('Decision failed: ' + (e?.message || 'error'), 'error', 5000);
+  }
+}
+
+/* ===================== Analytics Tab ===================== */
+async function loadAnalytics(preset='week') {
+  showLoader('Loading analytics...');
+  try {
+    $$('#an-preset-row .preset-btn').forEach(b => b.classList.toggle('active', b.dataset.preset === preset));
+    const r = getPresetRange(preset);
+    const rows = await fetchOrders(r.from, r.to);
+    const live = rows.filter(x => !x.isVoided);
+
+    drawTrendChart(live, r.from, r.to);
+    drawStatusChart(live);
+    drawBranchChart(live);
+    drawHoursChart(live);
+    renderDriverPerf(live);
+    renderBranchPerf(live);
+    renderZonePerf(live);
+
+    hideLoader();
+  } catch (e) {
+    hideLoader();
+    console.error('[analytics]', e);
+    showToast('Analytics load failed: ' + (e?.message || 'error'), 'error');
+  }
+}
+function drawTrendChart(rows, from, to) {
+  const ctx = $('#chart-trend').getContext('2d');
+  // Bucket by local YYYY-MM-DD
+  const buckets = {};
+  const labels = [];
+  const cursor = new Date(from);
+  while (cursor <= to) {
+    const k = localDateStr(cursor);
+    buckets[k] = { handed:0, delivered:0, failed:0 };
+    labels.push(k.slice(5)); // MM-DD
+    cursor.setDate(cursor.getDate()+1);
+  }
+  rows.forEach(r => {
+    const d = tsToDate(r.handover_ts); if (!d) return;
+    const k = localDateStr(d);
+    if (!buckets[k]) return;
+    buckets[k].handed++;
+    if (r.status === 'Delivered' || r.status === 'Partially Delivered') buckets[k].delivered++;
+    else if (['Returned','No Answer','Postponed'].includes(r.status)) buckets[k].failed++;
+  });
+  const keys = Object.keys(buckets);
+  const data = {
+    labels,
+    datasets: [
+      { label: 'Total', data: keys.map(k => buckets[k].handed),    borderColor:'#b22025', backgroundColor:'rgba(178,32,37,0.10)', tension:0.3, fill:true },
+      { label: 'Delivered', data: keys.map(k => buckets[k].delivered), borderColor:'#16a34a', backgroundColor:'rgba(22,163,74,0.10)', tension:0.3 },
+      { label: 'Failed/Returned', data: keys.map(k => buckets[k].failed),    borderColor:'#dc2626', backgroundColor:'rgba(220,38,38,0.10)', tension:0.3 }
+    ]
+  };
+  if (_chartTrend) _chartTrend.destroy();
+  _chartTrend = new Chart(ctx, { type:'line', data, options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom'}} } });
+}
+function drawStatusChart(rows) {
+  const ctx = $('#chart-status').getContext('2d');
+  const counts = {};
+  rows.forEach(r => { counts[r.status] = (counts[r.status]||0)+1; });
+  const labels = Object.keys(counts);
+  const colors = { 'Delivered':'#16a34a','Partially Delivered':'#22c55e','Handed Over':'#2563eb','Returned':'#dc2626','No Answer':'#f59e0b','Postponed':'#a855f7' };
+  if (_chartStatus) _chartStatus.destroy();
+  _chartStatus = new Chart(ctx, {
+    type:'doughnut',
+    data:{ labels, datasets:[{ data: labels.map(l => counts[l]), backgroundColor: labels.map(l => colors[l] || '#9ca3af') }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'right'}} }
+  });
+}
+function drawBranchChart(rows) {
+  const ctx = $('#chart-branch').getContext('2d');
+  const counts = {};
+  rows.forEach(r => { counts[r.store_id] = (counts[r.store_id]||0)+1; });
+  const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+  const labels = sorted.map(([id]) => _storesMap[id]?.name || id);
+  const data   = sorted.map(([,n]) => n);
+  if (_chartBranch) _chartBranch.destroy();
+  _chartBranch = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Orders', data, backgroundColor:'#b22025' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, indexAxis:'y' }
+  });
+}
+function drawHoursChart(rows) {
+  const ctx = $('#chart-hours').getContext('2d');
+  const buckets = new Array(24).fill(0);
+  rows.forEach(r => {
+    const d = tsToDate(r.handover_ts); if (!d) return;
+    buckets[d.getHours()]++;
+  });
+  const labels = buckets.map((_,i) => String(i).padStart(2,'0')+':00');
+  if (_chartHours) _chartHours.destroy();
+  _chartHours = new Chart(ctx, {
+    type:'bar',
+    data:{ labels, datasets:[{ label:'Handovers', data: buckets, backgroundColor:'#2563eb' }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}} }
+  });
+}
+function renderDriverPerf(rows) {
+  const groups = {};
+  rows.forEach(r => {
+    const k = r.agent_id || 'unknown';
+    if (!groups[k]) groups[k] = { id:k, name:r.agent_name, store_id:r.store_id, delivered:0, returned:0, otherFailed:0, durs:[], revenue:0, onTime:0, sla:0 };
+    const g = groups[k];
+    if (r.status === 'Delivered' || r.status === 'Partially Delivered') {
+      g.delivered++;
+      if (typeof r.duration_minutes === 'number') g.durs.push(r.duration_minutes);
+      g.revenue += Number(r.shipping_fee)||0;
+    } else if (r.status === 'Returned') g.returned++;
+    else if (['No Answer','Postponed'].includes(r.status)) g.otherFailed++;
+    if (r.sla_status) { g.sla++; if (r.sla_status === 'On Time') g.onTime++; }
+  });
+  const list = Object.values(groups).sort((a,b) => b.delivered - a.delivered);
+  const tbody = $('#driver-perf-body');
+  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="9" class="empty-state">No data</td></tr>'; return; }
+  tbody.innerHTML = list.map(g => {
+    const avg = g.durs.length ? Math.round(g.durs.reduce((a,b)=>a+b,0)/g.durs.length) : null;
+    const fastest = g.durs.length ? Math.min(...g.durs) : null;
+    const otp = g.sla ? Math.round(g.onTime/g.sla*100) : null;
+    return `<tr>
+      <td>${escapeHtml(g.name)} <span class="mono" style="color:var(--muted);font-size:11px">${escapeHtml(g.id)}</span></td>
+      <td>${escapeHtml(_storesMap[g.store_id]?.name || g.store_id)}</td>
+      <td>${g.delivered}</td>
+      <td>${g.returned}</td>
+      <td>${g.otherFailed}</td>
+      <td>${avg != null ? formatDuration(avg) : '—'}</td>
+      <td>${fastest != null ? formatDuration(fastest) : '—'}</td>
+      <td>${otp != null ? otp + '%' : '—'}</td>
+      <td>${formatEGP(g.revenue)}</td>
+    </tr>`;
+  }).join('');
+}
+function renderBranchPerf(rows) {
+  const groups = {};
+  rows.forEach(r => {
+    const k = r.store_id;
+    if (!groups[k]) groups[k] = { id:k, name:_storesMap[k]?.name||k, total:0, delivered:0, failed:0, durs:[], revenue:0 };
+    const g = groups[k];
+    g.total++;
+    if (r.status === 'Delivered' || r.status === 'Partially Delivered') {
+      g.delivered++; g.revenue += Number(r.shipping_fee)||0;
+      if (typeof r.duration_minutes === 'number') g.durs.push(r.duration_minutes);
+    } else if (['Returned','No Answer','Postponed'].includes(r.status)) g.failed++;
+  });
+  const list = Object.values(groups).sort((a,b) => b.total - a.total);
+  const tbody = $('#branch-perf-body');
+  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No data</td></tr>'; return; }
+  tbody.innerHTML = list.map(g => {
+    const avg = g.durs.length ? Math.round(g.durs.reduce((a,b)=>a+b,0)/g.durs.length) : null;
+    const sr = g.total ? Math.round(g.delivered/g.total*100) : 0;
+    return `<tr>
+      <td>${escapeHtml(g.name)}</td>
+      <td>${g.total}</td>
+      <td>${g.delivered}</td>
+      <td>${g.failed}</td>
+      <td>${sr}%</td>
+      <td>${avg != null ? formatDuration(avg) : '—'}</td>
+      <td>${formatEGP(g.revenue)}</td>
+    </tr>`;
+  }).join('');
+}
+function renderZonePerf(rows) {
+  const groups = {};
+  rows.forEach(r => {
+    const k = r.zone_id || 'unknown';
+    if (!groups[k]) groups[k] = { id:k, name:r.zone_name, store_id:r.store_id, total:0, delivered:0, failed:0, durs:[], revenue:0 };
+    const g = groups[k];
+    g.total++;
+    if (r.status === 'Delivered' || r.status === 'Partially Delivered') {
+      g.delivered++; g.revenue += Number(r.shipping_fee)||0;
+      if (typeof r.duration_minutes === 'number') g.durs.push(r.duration_minutes);
+    } else if (['Returned','No Answer','Postponed'].includes(r.status)) g.failed++;
+  });
+  const list = Object.values(groups).sort((a,b) => b.total - a.total);
+  const tbody = $('#zone-perf-body');
+  if (list.length === 0) { tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No data</td></tr>'; return; }
+  tbody.innerHTML = list.map(g => {
+    const avg = g.durs.length ? Math.round(g.durs.reduce((a,b)=>a+b,0)/g.durs.length) : null;
+    const sr = g.total ? Math.round(g.delivered/g.total*100) : 0;
+    return `<tr>
+      <td>${escapeHtml(g.name)}</td>
+      <td>${escapeHtml(_storesMap[g.store_id]?.name || g.store_id)}</td>
+      <td>${g.total}</td>
+      <td>${g.delivered}</td>
+      <td>${sr}%</td>
+      <td>${avg != null ? formatDuration(avg) : '—'}</td>
+      <td>${formatEGP(g.revenue)}</td>
+    </tr>`;
+  }).join('');
+}
+
+/* ===================== Reports Tab ===================== */
+async function generateReport() {
+  const fromStr = $('#rep-from').value;
+  const toStr   = $('#rep-to').value;
+  const type    = $('#rep-type').value;
+  if (!fromStr || !toStr) { showToast('Please select a date range', 'warning'); return; }
+  showLoader('Generating report...');
+  try {
+    const from = new Date(fromStr + 'T00:00:00');
+    const to   = new Date(toStr   + 'T23:59:59.999');
+
+    // Branch override (super_admin only)
+    const oldBV = _currentBranchView;
+    const repBranch = $('#rep-branch').value;
+    if (session.role === 'super_admin' && repBranch) _currentBranchView = repBranch;
+    const rows = (await fetchOrders(from, to)).filter(r => !r.isVoided);
+    _currentBranchView = oldBV;
+
+    let headers = [], dataRows = [], title = '';
+    if (type === 'financial') {
+      title = 'Financial Summary';
+      headers = ['Branch','Delivered','Partial','Shipping Revenue (EGP)','Cash Collected (EGP)','Non-Cash (EGP)'];
+      const groups = {};
+      rows.forEach(r => {
+        const k = r.store_id;
+        if (!groups[k]) groups[k] = { name:_storesMap[k]?.name||k, delivered:0, partial:0, revenue:0, cash:0, nonCash:0 };
+        const g = groups[k];
+        if (r.status === 'Delivered') g.delivered++;
+        if (r.status === 'Partially Delivered') g.partial++;
+        if (r.status === 'Delivered' || r.status === 'Partially Delivered') {
+          g.revenue += Number(r.shipping_fee)||0;
+          const amt = Number(r.amount_collected)||0;
+          if (r.payment_method && /cash/i.test(r.payment_method)) g.cash += amt;
+          else g.nonCash += amt;
+        }
+      });
+      dataRows = Object.values(groups).map(g => [g.name, g.delivered, g.partial, g.revenue.toFixed(2), g.cash.toFixed(2), g.nonCash.toFixed(2)]);
+    } else if (type === 'driver-payroll') {
+      title = 'Driver Payroll (Shipping Fees)';
+      headers = ['Driver','Branch','Deliveries','Returned','Shipping Fees Earned (EGP)','Avg Time'];
+      const g = {};
+      rows.forEach(r => {
+        const k = r.agent_id || 'unknown';
+        if (!g[k]) g[k] = { id:k, name:r.agent_name, store:_storesMap[r.store_id]?.name||r.store_id, deliv:0, ret:0, fees:0, durs:[] };
+        const x = g[k];
+        if (r.status === 'Delivered' || r.status === 'Partially Delivered') {
+          x.deliv++; x.fees += Number(r.shipping_fee)||0;
+          if (typeof r.duration_minutes === 'number') x.durs.push(r.duration_minutes);
+        } else if (r.status === 'Returned') x.ret++;
+      });
+      dataRows = Object.values(g)
+        .filter(x => x.deliv > 0 || x.ret > 0)
+        .sort((a,b) => b.fees - a.fees)
+        .map(x => {
+          const avg = x.durs.length ? Math.round(x.durs.reduce((a,b)=>a+b,0)/x.durs.length) : null;
+          return [x.name + ' ('+x.id+')', x.store, x.deliv, x.ret, x.fees.toFixed(2), avg != null ? formatDuration(avg) : '—'];
+        });
+    } else if (type === 'branch') {
+      title = 'Branch Performance';
+      headers = ['Branch','Total','Delivered','Failed','Success Rate','Avg Time','Revenue (EGP)'];
+      const gr = {};
+      rows.forEach(r => {
+        const k = r.store_id;
+        if (!gr[k]) gr[k] = { name:_storesMap[k]?.name||k, total:0, deliv:0, fail:0, durs:[], rev:0 };
+        const g = gr[k]; g.total++;
+        if (r.status === 'Delivered' || r.status === 'Partially Delivered') {
+          g.deliv++; g.rev += Number(r.shipping_fee)||0;
+          if (typeof r.duration_minutes === 'number') g.durs.push(r.duration_minutes);
+        } else if (['Returned','No Answer','Postponed'].includes(r.status)) g.fail++;
+      });
+      dataRows = Object.values(gr).sort((a,b)=>b.total-a.total).map(g => {
+        const avg = g.durs.length ? Math.round(g.durs.reduce((a,b)=>a+b,0)/g.durs.length) : null;
+        return [g.name, g.total, g.deliv, g.fail, g.total?Math.round(g.deliv/g.total*100)+'%':'—', avg!=null?formatDuration(avg):'—', g.rev.toFixed(2)];
+      });
+    } else if (type === 'zone') {
+      title = 'Zone Performance';
+      headers = ['Zone','Branch','Orders','Delivered','Success Rate','Avg Time','Revenue (EGP)'];
+      const gr = {};
+      rows.forEach(r => {
+        const k = r.zone_id || 'unknown';
+        if (!gr[k]) gr[k] = { name:r.zone_name, store:_storesMap[r.store_id]?.name||r.store_id, total:0, deliv:0, durs:[], rev:0 };
+        const g = gr[k]; g.total++;
+        if (r.status === 'Delivered' || r.status === 'Partially Delivered') {
+          g.deliv++; g.rev += Number(r.shipping_fee)||0;
+          if (typeof r.duration_minutes === 'number') g.durs.push(r.duration_minutes);
+        }
+      });
+      dataRows = Object.values(gr).sort((a,b)=>b.total-a.total).map(g => {
+        const avg = g.durs.length ? Math.round(g.durs.reduce((a,b)=>a+b,0)/g.durs.length) : null;
+        return [g.name, g.store, g.total, g.deliv, g.total?Math.round(g.deliv/g.total*100)+'%':'—', avg!=null?formatDuration(avg):'—', g.rev.toFixed(2)];
+      });
+    } else if (type === 'sla') {
+      title = 'SLA Compliance';
+      headers = ['Branch','Confirmed Orders','On Time','Delayed','On-Time %'];
+      const gr = {};
+      rows.forEach(r => {
+        if (!r.sla_status) return;
+        const k = r.store_id;
+        if (!gr[k]) gr[k] = { name:_storesMap[k]?.name||k, total:0, onTime:0, delayed:0 };
+        const g = gr[k]; g.total++;
+        if (r.sla_status === 'On Time') g.onTime++; else g.delayed++;
+      });
+      dataRows = Object.values(gr).sort((a,b)=>b.total-a.total).map(g => [
+        g.name, g.total, g.onTime, g.delayed, g.total?Math.round(g.onTime/g.total*100)+'%':'—'
+      ]);
+    }
+
+    _currentReport = { type, title, headers, rows: dataRows, period: `${fromStr} → ${toStr}` };
+
+    // Render
+    const branchTxt = (session.role === 'super_admin' && repBranch) ? (_storesMap[repBranch]?.name||repBranch) : (session.role==='super_admin'?'All Branches':_storesMap[session.store_id]?.name||session.store_id);
+    $('#report-print-header').innerHTML = `
+      <h2 style="margin:0 0 4px;font-family:'Sora',sans-serif;font-size:22px;color:var(--bloom);">${escapeHtml(title)}</h2>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">Period: ${escapeHtml(_currentReport.period)} · Branch: ${escapeHtml(branchTxt)} · Generated: ${formatTs(new Date())}</div>
+    `;
+    if (dataRows.length === 0) {
+      $('#report-content').innerHTML = '<div class="empty-state">No data for this period.</div>';
+    } else {
+      $('#report-content').innerHTML = `
+        <div class="table-wrap"><table class="data">
+          <thead><tr>${headers.map(h => `<th>${escapeHtml(h)}</th>`).join('')}</tr></thead>
+          <tbody>${dataRows.map(r => `<tr>${r.map(c => `<td>${escapeHtml(String(c))}</td>`).join('')}</tr>`).join('')}</tbody>
+        </table></div>
+      `;
+    }
+    $('#report-output').style.display = '';
+    ['btn-rep-xlsx','btn-rep-csv','btn-rep-print'].forEach(id => { $('#'+id).disabled = dataRows.length === 0; });
+
+    await logAudit('report_generate', null, type, { period: _currentReport.period, branch: repBranch || null, rowCount: dataRows.length });
+    hideLoader();
+  } catch (e) {
+    hideLoader();
+    console.error('[report]', e);
+    showToast('Report generation failed: ' + (e?.message || 'error'), 'error', 5000);
+  }
+}
+
+/* ===================== Export Helpers ===================== */
+function exportToXLSX(filename, headers, rows, sheetName='Data') {
+  const aoa = [headers, ...rows];
+  const ws  = XLSX.utils.aoa_to_sheet(aoa);
+  const wb  = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, sheetName);
+  XLSX.writeFile(wb, filename);
+}
+function exportToCSV(filename, headers, rows) {
+  const esc = v => {
+    const s = String(v ?? '');
+    if (/[",\n]/.test(s)) return '"' + s.replace(/"/g,'""') + '"';
+    return s;
+  };
+  const csv = [headers.map(esc).join(','), ...rows.map(r => r.map(esc).join(','))].join('\n');
+  const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href = url; a.download = filename;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(url); a.remove(); }, 100);
+}
+function exportOrdersXLSX() {
+  if (_ordersFiltered.length === 0) { showToast('No data to export', 'warning'); return; }
+  const headers = ['Order ID','Branch','Zone','Driver','Status','Voided','Handover','Confirm','Duration (min)','SLA','Shipping Fee','Payment','Amount Collected','Receipt #','Handover Notes','Confirm Notes'];
+  const rows = _ordersFiltered.map(r => [
+    r.order_id, r.store_name, r.zone_name, r.agent_name, r.status, r.isVoided?'YES':'',
+    r.handover_ts ? formatTs(r.handover_ts) : '',
+    r.confirm_ts  ? formatTs(r.confirm_ts)  : '',
+    r.duration_minutes ?? '', r.sla_status || '',
+    r.shipping_fee.toFixed(2), r.payment_method || '',
+    r.amount_collected != null ? Number(r.amount_collected).toFixed(2) : '',
+    r.receipt_number || '', r.notes || '', r.confirm_notes || ''
+  ]);
+  const fn = `bloom_orders_${localDateStr()}.xlsx`;
+  exportToXLSX(fn, headers, rows, 'Orders');
+  logAudit('export', null, 'orders.xlsx', { rowCount: rows.length });
+}
+function exportOrdersCSV() {
+  if (_ordersFiltered.length === 0) { showToast('No data to export', 'warning'); return; }
+  const headers = ['Order ID','Branch','Zone','Driver','Status','Voided','Handover','Confirm','Duration (min)','SLA','Shipping Fee','Payment','Amount Collected','Receipt #','Handover Notes','Confirm Notes'];
+  const rows = _ordersFiltered.map(r => [
+    r.order_id, r.store_name, r.zone_name, r.agent_name, r.status, r.isVoided?'YES':'',
+    r.handover_ts ? formatTs(r.handover_ts) : '',
+    r.confirm_ts  ? formatTs(r.confirm_ts)  : '',
+    r.duration_minutes ?? '', r.sla_status || '',
+    r.shipping_fee.toFixed(2), r.payment_method || '',
+    r.amount_collected != null ? Number(r.amount_collected).toFixed(2) : '',
+    r.receipt_number || '', r.notes || '', r.confirm_notes || ''
+  ]);
+  const fn = `bloom_orders_${localDateStr()}.csv`;
+  exportToCSV(fn, headers, rows);
+  logAudit('export', null, 'orders.csv', { rowCount: rows.length });
+}
+function exportReport(fmt) {
+  if (!_currentReport || _currentReport.rows.length === 0) { showToast('Generate a report first', 'warning'); return; }
+  const safe = _currentReport.type.replace(/[^a-z0-9]/gi,'_');
+  const fn   = `bloom_${safe}_${localDateStr()}.${fmt}`;
+  if (fmt === 'xlsx') exportToXLSX(fn, _currentReport.headers, _currentReport.rows, _currentReport.title.slice(0,28));
+  else                exportToCSV (fn, _currentReport.headers, _currentReport.rows);
+  logAudit('export', null, fn, {});
+}
+function printReport() {
+  document.body.classList.add('printing-report');
+  window.print();
+  setTimeout(() => document.body.classList.remove('printing-report'), 500);
+  logAudit('export', null, 'report_print', { type: _currentReport?.type });
+}
+/* ===================== Users CRUD ===================== */
+function renderUsersTab() {
+  const fBranch = $('#uf-branch').value;
+  const fRole   = $('#uf-role').value;
+  const fSearch = ($('#uf-search').value || '').toLowerCase().trim();
+  const isSA    = session.role === 'super_admin';
+
+  let list = _usersList.slice();
+  if (!isSA) {
+    // Branch managers only see staff + their own peers in same branch (cannot manage super_admins)
+    list = list.filter(u => u.role !== 'super_admin' && (u.store_id === session.store_id || u.store_id === '*'));
+  }
+  if (fBranch) list = list.filter(u => u.store_id === fBranch);
+  if (fRole)   list = list.filter(u => u.role === fRole);
+  if (fSearch) list = list.filter(u =>
+    (u.username||'').toLowerCase().includes(fSearch) ||
+    (u.display_name||'').toLowerCase().includes(fSearch) ||
+    (u.email||'').toLowerCase().includes(fSearch) ||
+    String(u.passcode||'').includes(fSearch)
+  );
+
+  const tbody = $('#users-body');
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="8" class="empty-state">No users found</td></tr>';
+    return;
+  }
+  list.sort((a,b) => (a.username||'').localeCompare(b.username||''));
+  tbody.innerHTML = list.map(u => {
+    const canEdit = isSA || (u.role !== 'super_admin' && (u.store_id === session.store_id || u.store_id === '*'));
+    const isActive = (u.status||'active') === 'active';
+    const branchTxt = u.store_id === '*' ? 'All Branches' : (_storesMap[u.store_id]?.name || u.store_id);
+    const roleTxt = u.role === 'super_admin' ? 'Super Admin' : (u.role === 'store_admin' ? 'Branch Manager' : 'Staff');
+    return `<tr>
+      <td class="mono">${escapeHtml(u.passcode)}</td>
+      <td>${escapeHtml(u.username || '—')}</td>
+      <td>${escapeHtml(u.display_name || '—')}</td>
+      <td>${escapeHtml(u.email || '—')}</td>
+      <td>${escapeHtml(branchTxt)}</td>
+      <td>${escapeHtml(roleTxt)}</td>
+      <td><span class="badge ${isActive?'b-active':'b-inactive'}">${isActive?'Active':'Inactive'}</span></td>
+      <td class="actions">
+        ${canEdit ? `<button class="btn btn-outline btn-sm" data-act="user-edit" data-id="${escapeHtml(u.passcode)}">Edit</button>` : ''}
+        ${canEdit ? `<button class="btn ${isActive?'btn-danger':'btn-success'} btn-sm" data-act="user-toggle" data-id="${escapeHtml(u.passcode)}">${isActive?'Deactivate':'Activate'}</button>` : ''}
+      </td>
+    </tr>`;
+  }).join('');
+}
+function openUserModal(passcode) {
+  const isSA = session.role === 'super_admin';
+  const u = passcode ? _usersList.find(x => x.passcode === passcode) : null;
+  $('#modal-user-title').textContent = u ? 'Edit User' : 'Add User';
+  $('#user-edit-passcode').value = u ? u.passcode : '';
+  $('#user-passcode').value      = u ? u.passcode : '';
+  $('#user-passcode').disabled   = !!u;
+  $('#user-username').value      = u ? (u.username || '') : '';
+  $('#user-display').value       = u ? (u.display_name || '') : '';
+  $('#user-email').value         = u ? (u.email || '') : '';
+  $('#user-role-sel').value      = u ? (u.role || 'staff') : 'staff';
+  // Branch managers cannot create/edit super_admins
+  const superAdminOpt = $('#user-role-sel').querySelector('option[value="super_admin"]');
+  if (superAdminOpt) superAdminOpt.disabled = !isSA;
+  // Branch select: super_admins use any branch (or '*' for super_admin role); managers locked to their branch
+  const branchSel = $('#user-branch-sel');
+  if (u && u.store_id === '*') {
+    // Add wildcard option
+    branchSel.innerHTML = '<option value="*">All Branches</option>' +
+      Object.entries(_storesMap).map(([id,s]) => `<option value="${escapeHtml(id)}">${escapeHtml(s.name)}</option>`).join('');
+    branchSel.value = '*';
+  } else if (isSA) {
+    branchSel.innerHTML = '<option value="*">All Branches</option>' +
+      Object.entries(_storesMap).map(([id,s]) => `<option value="${escapeHtml(id)}">${escapeHtml(s.name)}</option>`).join('');
+    branchSel.value = u ? u.store_id : session.store_id;
+    branchSel.disabled = false;
+  }
+  $('#user-status-sel').value = u ? (u.status || 'active') : 'active';
+  $('#user-error').textContent = '';
+  $('#user-error').classList.remove('show');
+  openModal('modal-user');
+}
+async function saveUser() {
+  const errEl = $('#user-error');
+  errEl.classList.remove('show');
+  const editing = !!$('#user-edit-passcode').value;
+  const passcode = ($('#user-passcode').value || '').trim();
+  const username = ($('#user-username').value || '').trim();
+  const display  = ($('#user-display').value || '').trim();
+  const email    = ($('#user-email').value || '').trim();
+  const role     = $('#user-role-sel').value;
+  let store_id   = $('#user-branch-sel').value;
+  const status   = $('#user-status-sel').value;
+
+  if (!/^\d{3,10}$/.test(passcode)) return showErr(errEl, 'Passcode must be 3–10 digits.');
+  if (!username) return showErr(errEl, 'Username is required.');
+  if (!role) return showErr(errEl, 'Role is required.');
+  if (role === 'super_admin' && session.role !== 'super_admin') return showErr(errEl, 'Only super admins can create super admins.');
+  if (role === 'super_admin') store_id = '*';
+  if (!store_id) return showErr(errEl, 'Branch is required.');
+  if (session.role === 'store_admin' && store_id !== session.store_id) return showErr(errEl, 'You can only manage users in your own branch.');
+
+  showLoader(editing ? 'Updating user...' : 'Creating user...');
+  try {
+    // Uniqueness: if creating, ensure passcode not used in /users OR /agents
+    if (!editing) {
+      const [uSnap, agentColl] = await Promise.all([
+        getDoc(doc(db, 'users', passcode)),
+        getDocs(query(collection(db,'agents'), where('password','==',passcode), limit(1)))
+      ]);
+      if (uSnap.exists())           throw new Error('A user with this passcode already exists');
+      if (!agentColl.empty)         throw new Error('This passcode is already used by a driver');
+    }
+    const store_name = store_id === '*' ? 'All Branches' : (_storesMap[store_id]?.name || store_id);
+    const payload = { passcode, username, display_name: display, email, role, store_id, store_name, status };
+    if (editing) {
+      // updateDoc — rules will reject unknown fields
+      await updateDoc(doc(db, 'users', passcode), {
+        username, display_name: display, email, role, store_id, store_name, status,
+        last_updated: serverTimestamp()
+      });
+    } else {
+      await setDoc(doc(db, 'users', passcode), { ...payload, created_at: serverTimestamp() });
+    }
+    await logAudit(editing ? 'user_update' : 'user_create', 'users', passcode, { role, store_id, status });
+    // Refresh
+    await loadUsersIfMgr();
+    renderUsersTab();
+    closeModal('modal-user');
+    hideLoader();
+    showToast(editing ? 'User updated' : 'User created', 'success');
+  } catch (e) {
+    hideLoader();
+    showErr(errEl, e?.message || 'Save failed');
+  }
+}
+async function toggleUserStatus(passcode) {
+  const u = _usersList.find(x => x.passcode === passcode); if (!u) return;
+  if (u.passcode === session.passcode) return showToast('You cannot deactivate your own account', 'warning');
+  const newStatus = (u.status||'active') === 'active' ? 'inactive' : 'active';
+  showLoader(newStatus === 'active' ? 'Activating...' : 'Deactivating...');
+  try {
+    await updateDoc(doc(db, 'users', passcode), { status: newStatus, last_updated: serverTimestamp() });
+    await logAudit(newStatus === 'active' ? 'user_activate' : 'user_deactivate', 'users', passcode, {});
+    await loadUsersIfMgr();
+    renderUsersTab();
+    hideLoader();
+    showToast(`User ${newStatus}`, 'success');
+  } catch (e) {
+    hideLoader();
+    showToast('Status change failed: ' + (e?.message||'error'), 'error');
+  }
+}
+
+/* ===================== Drivers (agents) CRUD ===================== */
+function renderAgentsTab() {
+  const fBranch = $('#af-branch').value;
+  const fStatus = $('#af-status').value;
+  const fSearch = ($('#af-search').value || '').toLowerCase().trim();
+  const isSA    = session.role === 'super_admin';
+
+  let list = _agentsList.slice();
+  if (!isSA) list = list.filter(a => a.store_id === session.store_id);
+  if (fBranch) list = list.filter(a => a.store_id === fBranch);
+  if (fStatus) list = list.filter(a => (a.status||'active') === fStatus);
+  if (fSearch) list = list.filter(a =>
+    (a.name||'').toLowerCase().includes(fSearch) ||
+    (a.id||'').toLowerCase().includes(fSearch) ||
+    String(a.password||'').includes(fSearch)
+  );
+  list.sort((a,b) => (a.name||'').localeCompare(b.name||''));
+
+  const tbody = $('#agents-body');
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No drivers found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(a => {
+    const isActive = (a.status||'active') === 'active';
+    return `<tr>
+      <td class="mono">${escapeHtml(a.id)}</td>
+      <td>${escapeHtml(a.name||'—')}</td>
+      <td>${escapeHtml(_storesMap[a.store_id]?.name || a.store_id)}</td>
+      <td class="mono">${escapeHtml(String(a.password||''))}</td>
+      <td>${escapeHtml(a.phone||'—')}</td>
+      <td><span class="badge ${isActive?'b-active':'b-inactive'}">${isActive?'Active':'Inactive'}</span></td>
+      <td class="actions">
+        <button class="btn btn-outline btn-sm" data-act="agent-edit" data-id="${escapeHtml(a.id)}">Edit</button>
+        <button class="btn ${isActive?'btn-danger':'btn-success'} btn-sm" data-act="agent-toggle" data-id="${escapeHtml(a.id)}">${isActive?'Deactivate':'Activate'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function openAgentModal(id) {
+  const a = id ? _agentsList.find(x => x.id === id) : null;
+  $('#modal-agent-title').textContent = a ? 'Edit Driver' : 'Add Driver';
+  $('#agent-edit-id').value = a ? a.id : '';
+  $('#agent-id').value      = a ? a.id : '';
+  $('#agent-id').disabled   = !!a;
+  $('#agent-name').value    = a ? (a.name||'') : '';
+  $('#agent-branch').value  = a ? a.store_id : (session.role==='super_admin' ? Object.keys(_storesMap)[0] : session.store_id);
+  $('#agent-branch').disabled = session.role !== 'super_admin';
+  $('#agent-passcode').value = a ? (a.password||'') : '';
+  $('#agent-phone').value   = a ? (a.phone||'') : '';
+  $('#agent-status').value  = a ? (a.status||'active') : 'active';
+  $('#agent-error').textContent = '';
+  $('#agent-error').classList.remove('show');
+  openModal('modal-agent');
+}
+async function saveAgent() {
+  const errEl = $('#agent-error');
+  errEl.classList.remove('show');
+  const editing = !!$('#agent-edit-id').value;
+  const id       = ($('#agent-id').value || '').trim();
+  const name     = ($('#agent-name').value || '').trim();
+  const store_id = $('#agent-branch').value;
+  const password = ($('#agent-passcode').value || '').trim();
+  const phone    = ($('#agent-phone').value || '').trim();
+  const status   = $('#agent-status').value;
+
+  if (!/^[A-Za-z0-9_-]{2,30}$/.test(id)) return showErr(errEl, 'Driver ID must be 2–30 chars (letters/digits/_-).');
+  if (!name) return showErr(errEl, 'Name is required.');
+  if (!store_id) return showErr(errEl, 'Branch is required.');
+  if (!/^\d{3,10}$/.test(password)) return showErr(errEl, 'Passcode must be 3–10 digits.');
+  if (session.role === 'store_admin' && store_id !== session.store_id) return showErr(errEl, 'You can only manage drivers in your branch.');
+
+  showLoader(editing ? 'Updating driver...' : 'Creating driver...');
+  try {
+    if (!editing) {
+      // ID uniqueness
+      const idSnap = await getDoc(doc(db, 'agents', id));
+      if (idSnap.exists()) throw new Error('A driver with this ID already exists');
+    }
+    // Passcode uniqueness across /users AND /agents (excluding self)
+    const [uSnap, agentColl] = await Promise.all([
+      getDoc(doc(db, 'users', password)),
+      getDocs(query(collection(db,'agents'), where('password','==',password), limit(2)))
+    ]);
+    if (uSnap.exists()) throw new Error('Passcode collides with a user account');
+    let collision = false;
+    agentColl.forEach(d => { if (d.id !== id) collision = true; });
+    if (collision) throw new Error('Passcode already used by another driver');
+
+    if (editing) {
+      await updateDoc(doc(db, 'agents', id), { name, store_id, password, phone, status, last_updated: serverTimestamp() });
+    } else {
+      await setDoc(doc(db, 'agents', id), {
+        agent_id: id, name, store_id, password, phone, status, created_at: serverTimestamp()
+      });
+    }
+    await logAudit(editing ? 'agent_update' : 'agent_create', 'agents', id, { store_id, status });
+    await loadAgents();
+    populateDriverSelects();
+    renderAgentsTab();
+    closeModal('modal-agent');
+    hideLoader();
+    showToast(editing ? 'Driver updated' : 'Driver created', 'success');
+  } catch (e) {
+    hideLoader();
+    showErr(errEl, e?.message || 'Save failed');
+  }
+}
+async function toggleAgentStatus(id) {
+  const a = _agentsList.find(x => x.id === id); if (!a) return;
+  const newStatus = (a.status||'active') === 'active' ? 'inactive' : 'active';
+  showLoader(newStatus === 'active' ? 'Activating...' : 'Deactivating...');
+  try {
+    await updateDoc(doc(db, 'agents', id), { status: newStatus, last_updated: serverTimestamp() });
+    await logAudit(newStatus === 'active' ? 'agent_activate' : 'agent_deactivate', 'agents', id, {});
+    await loadAgents();
+    populateDriverSelects();
+    renderAgentsTab();
+    hideLoader();
+    showToast(`Driver ${newStatus}`, 'success');
+  } catch (e) {
+    hideLoader();
+    showToast('Status change failed: ' + (e?.message||'error'), 'error');
+  }
+}
+
+/* ===================== Zones CRUD ===================== */
+function renderZonesTab() {
+  const fBranch = $('#zf-branch').value;
+  const fStatus = $('#zf-status').value;
+  const isSA    = session.role === 'super_admin';
+  let list = _zonesList.slice();
+  if (!isSA) list = list.filter(z => z.store_id === session.store_id);
+  if (fBranch) list = list.filter(z => z.store_id === fBranch);
+  if (fStatus) list = list.filter(z => (z.status||'active') === fStatus);
+  list.sort((a,b) => (_storesMap[a.store_id]?.name||'').localeCompare(_storesMap[b.store_id]?.name||'') || (a.name||'').localeCompare(b.name||''));
+
+  const tbody = $('#zones-body');
+  if (list.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No zones found</td></tr>';
+    return;
+  }
+  tbody.innerHTML = list.map(z => {
+    const isActive = (z.status||'active') === 'active';
+    return `<tr>
+      <td class="mono">${escapeHtml(z.id||z.docId)}</td>
+      <td>${escapeHtml(z.name||'—')}</td>
+      <td>${escapeHtml(_storesMap[z.store_id]?.name || z.store_id)}</td>
+      <td>${formatEGP(z.price||0)}</td>
+      <td>${escapeHtml(String(z.sla_minutes||60))} min</td>
+      <td><span class="badge ${isActive?'b-active':'b-inactive'}">${isActive?'Active':'Inactive'}</span></td>
+      <td class="actions">
+        <button class="btn btn-outline btn-sm" data-act="zone-edit" data-id="${escapeHtml(z.docId)}">Edit</button>
+        <button class="btn ${isActive?'btn-danger':'btn-success'} btn-sm" data-act="zone-toggle" data-id="${escapeHtml(z.docId)}">${isActive?'Deactivate':'Activate'}</button>
+      </td>
+    </tr>`;
+  }).join('');
+}
+function openZoneModal(docId) {
+  const z = docId ? _zonesList.find(x => x.docId === docId) : null;
+  $('#modal-zone-title').textContent = z ? 'Edit Zone' : 'Add Zone';
+  $('#zone-edit-docid').value = z ? z.docId : '';
+  $('#zone-branch').value     = z ? z.store_id : (session.role==='super_admin' ? Object.keys(_storesMap)[0] : session.store_id);
+  $('#zone-branch').disabled  = !!z || session.role !== 'super_admin';
+  $('#zone-id').value         = z ? (z.id || z.docId.split('_')[0]+'_'+z.docId.split('_')[1]) : '';
+  $('#zone-id').disabled      = !!z;
+  $('#zone-name').value       = z ? (z.name||'') : '';
+  $('#zone-price').value      = z ? Number(z.price||0) : 0;
+  $('#zone-sla').value        = z ? Number(z.sla_minutes||60) : 60;
+  $('#zone-status').value     = z ? (z.status||'active') : 'active';
+  $('#zone-error').textContent = '';
+  $('#zone-error').classList.remove('show');
+  openModal('modal-zone');
+}
+async function saveZone() {
+  const errEl = $('#zone-error');
+  errEl.classList.remove('show');
+  const editing  = !!$('#zone-edit-docid').value;
+  const docIdOld = $('#zone-edit-docid').value;
+  const store_id = $('#zone-branch').value;
+  const shortId  = ($('#zone-id').value || '').trim();
+  const name     = ($('#zone-name').value || '').trim();
+  const price    = Number($('#zone-price').value);
+  const sla      = Number($('#zone-sla').value);
+  const status   = $('#zone-status').value;
+
+  if (!store_id) return showErr(errEl, 'Branch is required.');
+  if (!/^[a-z0-9_]{2,30}$/i.test(shortId)) return showErr(errEl, 'Short ID must be like "zone_5" (letters/digits/_).');
+  if (!name) return showErr(errEl, 'Display name is required.');
+  if (isNaN(price) || price < 0) return showErr(errEl, 'Price must be 0 or positive.');
+  if (isNaN(sla) || sla < 1)     return showErr(errEl, 'SLA must be at least 1 minute.');
+  if (session.role === 'store_admin' && store_id !== session.store_id) return showErr(errEl, 'You can only manage zones in your branch.');
+
+  const docId = editing ? docIdOld : `${shortId}_${store_id}`;
+  showLoader(editing ? 'Updating zone...' : 'Creating zone...');
+  try {
+    if (!editing) {
+      const exists = await getDoc(doc(db, 'zones', docId));
+      if (exists.exists()) throw new Error('A zone with this short ID already exists in this branch');
+    }
+    const payload = {
+      id: shortId,
+      name,
+      price,
+      sla_minutes: sla,
+      store_id,
+      status,
+      last_updated: serverTimestamp()
+    };
+    if (editing) {
+      await updateDoc(doc(db, 'zones', docId), payload);
+    } else {
+      await setDoc(doc(db, 'zones', docId), { ...payload, created_at: serverTimestamp() });
+    }
+    await logAudit(editing ? 'zone_update' : 'zone_create', 'zones', docId, { store_id, price, sla });
+    await loadZones();
+    populateZoneSelects();
+    renderZonesTab();
+    closeModal('modal-zone');
+    hideLoader();
+    showToast(editing ? 'Zone updated' : 'Zone created', 'success');
+  } catch (e) {
+    hideLoader();
+    showErr(errEl, e?.message || 'Save failed');
+  }
+}
+async function toggleZoneStatus(docId) {
+  const z = _zonesList.find(x => x.docId === docId); if (!z) return;
+  const newStatus = (z.status||'active') === 'active' ? 'inactive' : 'active';
+  showLoader('Updating zone...');
+  try {
+    await updateDoc(doc(db, 'zones', docId), { status: newStatus, last_updated: serverTimestamp() });
+    await logAudit(newStatus==='active'?'zone_activate':'zone_deactivate', 'zones', docId, {});
+    await loadZones();
+    populateZoneSelects();
+    renderZonesTab();
+    hideLoader();
+    showToast(`Zone ${newStatus}`, 'success');
+  } catch (e) {
+    hideLoader();
+    showToast('Status change failed: ' + (e?.message||'error'), 'error');
+  }
+}
+
+/* ===================== Audit Log Tab (super_admin only) ===================== */
+async function loadAuditLog() {
+  if (session.role !== 'super_admin') return;
+  showLoader('Loading audit log...');
+  try {
+    const fromStr = $('#auf-from').value;
+    const toStr   = $('#auf-to').value;
+    const fAction = $('#auf-action').value;
+    const fActor  = ($('#auf-actor').value || '').toLowerCase().trim();
+
+    const filters = [];
+    if (fromStr) filters.push(where('ts', '>=', Timestamp.fromDate(new Date(fromStr+'T00:00:00'))));
+    if (toStr)   filters.push(where('ts', '<=', Timestamp.fromDate(new Date(toStr+'T23:59:59.999'))));
+    if (fAction) filters.push(where('action', '==', fAction));
+
+    const q = query(collection(db, 'audit_log'), ...filters, orderBy('ts','desc'), limit(500));
+    const snap = await getDocs(q);
+    let rows = [];
+    snap.forEach(d => rows.push({ id: d.id, ...d.data() }));
+    if (fActor) rows = rows.filter(r => (r.actor_username||'').toLowerCase().includes(fActor));
+
+    const tbody = $('#audit-body');
+    if (rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No audit events found</td></tr>';
+    } else {
+      tbody.innerHTML = rows.map(r => `<tr>
+        <td>${formatTs(r.ts)}</td>
+        <td>${escapeHtml(r.actor_username||'—')} <span class="mono" style="color:var(--muted);font-size:11px">(${escapeHtml(r.actor_role||'')})</span></td>
+        <td><strong>${escapeHtml(r.action||'—')}</strong></td>
+        <td>${escapeHtml(r.target_collection||'—')}</td>
+        <td class="mono">${escapeHtml(r.target_id||'—')}</td>
+        <td style="font-size:11px;color:var(--muted);max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(r.details||'')}">${escapeHtml((r.details||'').slice(0,80))}</td>
+      </tr>`).join('');
+    }
+    hideLoader();
+  } catch (e) {
+    hideLoader();
+    console.error('[audit]', e);
+    showToast('Audit log load failed: ' + (e?.message || 'error'), 'error');
+  }
+}
+
+/* ===================== Modal helpers ===================== */
+function openModal(id) { $('#'+id).classList.add('show'); }
+function closeModal(id) { $('#'+id).classList.remove('show'); }
+function showErr(el, msg) { el.textContent = msg; el.classList.add('show'); }
+
+/* ===================== Event Wiring ===================== */
+function wireUp() {
+  // Login
+  $('#btn-login').addEventListener('click', handleLogin);
+  $('#login-passcode').addEventListener('keydown', e => { if (e.key === 'Enter') handleLogin(); });
+  $('#login-passcode').addEventListener('input', e => {
+    e.target.value = e.target.value.replace(/\D/g,'').slice(0,10);
+  });
+
+  // Sidebar / nav
+  $$('.nav-item').forEach(a => a.addEventListener('click', () => activateTab(a.dataset.tab)));
+  $('#btn-logout').addEventListener('click', handleLogout);
+  $('#btn-mobile-menu').addEventListener('click', () => {
+    $('#sidebar').classList.add('open');
+    $('#sidebar-back').classList.add('show');
+  });
+  $('#sidebar-back').addEventListener('click', () => {
+    $('#sidebar').classList.remove('open');
+    $('#sidebar-back').classList.remove('show');
+  });
+
+  // Branch switcher (super_admin)
+  $('#branch-switcher').addEventListener('change', async e => {
+    _currentBranchView = e.target.value || '';
+    // Re-run current tab
+    const active = $$('.nav-item.active')[0]?.dataset.tab || 'dashboard';
+    await activateTab(active);
+  });
+
+  // Preset buttons
+  $$('#dash-preset-row .preset-btn').forEach(b => b.addEventListener('click', () => loadDashboard(b.dataset.preset)));
+  $$('#orders-preset-row .preset-btn').forEach(b => b.addEventListener('click', () => {
+    const r = getPresetRange(b.dataset.preset);
+    $('#of-from').value = r.fromStr; $('#of-to').value = r.toStr;
+    $$('#orders-preset-row .preset-btn').forEach(x => x.classList.toggle('active', x === b));
+    runOrdersSearch();
+  }));
+  $$('#an-preset-row .preset-btn').forEach(b => b.addEventListener('click', () => loadAnalytics(b.dataset.preset)));
+  $$('#rep-preset-row .preset-btn').forEach(b => b.addEventListener('click', () => {
+    const r = getPresetRange(b.dataset.preset);
+    $('#rep-from').value = r.fromStr; $('#rep-to').value = r.toStr;
+    $$('#rep-preset-row .preset-btn').forEach(x => x.classList.toggle('active', x === b));
+  }));
+
+  // Orders tab
+  $('#btn-of-search').addEventListener('click', runOrdersSearch);
+  $('#btn-of-reset').addEventListener('click', () => {
+    const r = getPresetRange('today');
+    $('#of-from').value = r.fromStr; $('#of-to').value = r.toStr;
+    if (session.role === 'super_admin') $('#of-branch').value = '';
+    $('#of-zone').value = ''; $('#of-driver').value = ''; $('#of-status').value = ''; $('#of-sla').value = '';
+    $('#of-order').value = ''; $('#of-dur-min').value = ''; $('#of-dur-max').value = '';
+    $('#of-fee-min').value = ''; $('#of-fee-max').value = '';
+    runOrdersSearch();
+  });
+  $('#btn-export-xlsx').addEventListener('click', exportOrdersXLSX);
+  $('#btn-export-csv').addEventListener('click', exportOrdersCSV);
+  $('#btn-export-print').addEventListener('click', () => window.print());
+
+  // Sortable headers
+  $('#orders-table thead').addEventListener('click', e => {
+    const th = e.target.closest('th[data-sort]'); if (!th) return;
+    const col = th.dataset.sort;
+    if (_ordersSort.col === col) _ordersSort.dir = _ordersSort.dir === 'asc' ? 'desc' : 'asc';
+    else { _ordersSort.col = col; _ordersSort.dir = 'desc'; }
+    applyOrdersSort();
+    renderOrdersTable();
+  });
+
+  // Orders body actions (delegated)
+  $('#orders-body').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    const act = btn.dataset.act;
+    const key = btn.dataset.key;
+    if (act === 'view')   openOrderDetails(key);
+    if (act === 'void')   openVoidModal(key, false);
+    if (act === 'reopen') openVoidModal(key, true);
+  });
+  // Pagination
+  $('#orders-pagination').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-pg]'); if (!btn) return;
+    const v = btn.dataset.pg;
+    const pages = Math.max(1, Math.ceil(_ordersFiltered.length / PAGE_SIZE));
+    if (v === 'prev') _ordersPage = Math.max(1, _ordersPage-1);
+    else if (v === 'next') _ordersPage = Math.min(pages, _ordersPage+1);
+    else _ordersPage = Math.max(1, Math.min(pages, parseInt(v,10)||1));
+    renderOrdersTable();
+  });
+  $('#btn-go-orders').addEventListener('click', () => activateTab('orders'));
+
+  // Dashboard "Pending Transfers" panel — click handlers.
+  $('#dash-pending-tf-body').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    if (btn.dataset.act === 'dash-tf-decide') {
+      openTransferModal(btn.dataset.id, false);
+    }
+  });
+  $('#btn-dash-tf-all').addEventListener('click', () => activateTab('transfers'));
+
+  // Order details modal actions
+  $('#modal-order-foot').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    if (btn.dataset.act === 'void-from-modal')   openVoidModal(btn.dataset.key, false);
+    if (btn.dataset.act === 'reopen-from-modal') openVoidModal(btn.dataset.key, true);
+  });
+
+  // Void confirm
+  $('#btn-confirm-void').addEventListener('click', confirmVoidOrReopen);
+
+  // Transfers
+  $('#btn-tf-search').addEventListener('click', renderTransfers);
+  $('#btn-tf-reset').addEventListener('click', () => {
+    $('#tf-status').value = ''; if (session.role === 'super_admin') { $('#tf-from').value=''; $('#tf-to').value=''; }
+    $('#tf-date-from').value=''; $('#tf-date-to').value=''; renderTransfers();
+  });
+  $('#transfers-body').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    if (btn.dataset.act === 'tf-decide') openTransferModal(btn.dataset.id, false);
+    if (btn.dataset.act === 'tf-view')   openTransferModal(btn.dataset.id, true);
+  });
+  $('#btn-tf-approve').addEventListener('click', () => decideTransfer('Approved'));
+  $('#btn-tf-reject').addEventListener('click',  () => decideTransfer('Rejected'));
+
+  // Reports
+  $('#btn-rep-generate').addEventListener('click', generateReport);
+  $('#btn-rep-xlsx').addEventListener('click', () => exportReport('xlsx'));
+  $('#btn-rep-csv').addEventListener('click',  () => exportReport('csv'));
+  $('#btn-rep-print').addEventListener('click', printReport);
+
+  // Users
+  $('#btn-add-user').addEventListener('click', () => openUserModal(null));
+  ['uf-branch','uf-role','uf-search'].forEach(id => $('#'+id).addEventListener('input', renderUsersTab));
+  $('#users-body').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    if (btn.dataset.act === 'user-edit')   openUserModal(btn.dataset.id);
+    if (btn.dataset.act === 'user-toggle') toggleUserStatus(btn.dataset.id);
+  });
+  $('#btn-save-user').addEventListener('click', saveUser);
+  // Auto-handle role change: super_admin role disables branch (forces *)
+  $('#user-role-sel').addEventListener('change', e => {
+    const branchSel = $('#user-branch-sel');
+    if (e.target.value === 'super_admin') {
+      if (!branchSel.querySelector('option[value="*"]')) {
+        const opt = document.createElement('option'); opt.value='*'; opt.textContent='All Branches';
+        branchSel.insertBefore(opt, branchSel.firstChild);
+      }
+      branchSel.value = '*';
+      branchSel.disabled = true;
+    } else {
+      branchSel.disabled = session.role !== 'super_admin';
+      if (branchSel.value === '*') branchSel.value = session.role==='super_admin' ? Object.keys(_storesMap)[0] : session.store_id;
+    }
+  });
+
+  // Agents
+  $('#btn-add-agent').addEventListener('click', () => openAgentModal(null));
+  ['af-branch','af-status','af-search'].forEach(id => $('#'+id).addEventListener('input', renderAgentsTab));
+  $('#agents-body').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    if (btn.dataset.act === 'agent-edit')   openAgentModal(btn.dataset.id);
+    if (btn.dataset.act === 'agent-toggle') toggleAgentStatus(btn.dataset.id);
+  });
+  $('#btn-save-agent').addEventListener('click', saveAgent);
+
+  // Zones
+  $('#btn-add-zone').addEventListener('click', () => openZoneModal(null));
+  ['zf-branch','zf-status'].forEach(id => $('#'+id).addEventListener('input', renderZonesTab));
+  $('#zones-body').addEventListener('click', e => {
+    const btn = e.target.closest('button[data-act]'); if (!btn) return;
+    if (btn.dataset.act === 'zone-edit')   openZoneModal(btn.dataset.id);
+    if (btn.dataset.act === 'zone-toggle') toggleZoneStatus(btn.dataset.id);
+  });
+  $('#btn-save-zone').addEventListener('click', saveZone);
+
+  // Audit
+  $('#btn-auf-search').addEventListener('click', loadAuditLog);
+  $('#btn-auf-reset').addEventListener('click', () => {
+    $('#auf-from').value=''; $('#auf-to').value=''; $('#auf-action').value=''; $('#auf-actor').value='';
+    loadAuditLog();
+  });
+
+  // Generic modal close (delegated)
+  document.addEventListener('click', e => {
+    const closer = e.target.closest('[data-close]');
+    if (closer) {
+      closeModal(closer.dataset.close);
+      return;
+    }
+    // Click outside modal box
+    if (e.target.classList && e.target.classList.contains('modal-back')) {
+      e.target.classList.remove('show');
+    }
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') $$('.modal-back.show').forEach(m => m.classList.remove('show'));
+  });
+}
+
+/* ===================== Init ===================== */
+async function init() {
+  wireUp();
+  try {
+    await ensureAuth();
+  } catch (e) {
+    console.error('[anon auth]', e);
+    showToast('Authentication failed. Reload the page.', 'error', 5000);
+    return;
+  }
+  // Restore session if valid
+  const s = loadSession();
+  if (s) {
+    showLoader('Restoring session...');
+    try {
+      // Re-fetch user doc to verify still active + role intact
+      const snap = await getDoc(doc(db, 'users', s.passcode));
+      if (snap.exists()) {
+        const u = snap.data();
+        if ((u.role === 'store_admin' || u.role === 'super_admin') && u.status !== 'inactive') {
+          session = {
+            ...s,
+            store_name: u.store_name || s.store_name,
+            display_name: u.display_name || s.display_name,
+            role: u.role
+          };
+          saveSession(session);
+          await bootApp();
+          return;
+        }
+      }
+      clearSession();
+      hideLoader();
+    } catch (e) {
+      console.warn('[session restore]', e?.message);
+      clearSession();
+      hideLoader();
+    }
+  }
+}
+init();
+</script>
+
+</body>
+</html>
