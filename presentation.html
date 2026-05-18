@@ -1,0 +1,1667 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bloom Delivery Platform — Training Presentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800;900&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<style>
+/* ── Reset & Base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0d1a; }
+
+:root {
+  --bloom-red:    #b22025;
+  --bloom-red-2:  #d4282e;
+  --bloom-dark:   #1a1a2e;
+  --bloom-darker: #0d0d1a;
+  --bloom-white:  #ffffff;
+  --bloom-off:    #f4f4f8;
+  --bloom-muted:  #a0a0b8;
+  --bloom-card:   rgba(255,255,255,0.06);
+  --bloom-border: rgba(255,255,255,0.1);
+  --shadow-red:   0 0 40px rgba(178,32,37,0.4);
+  --transition:   600ms cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* ── Slide Deck Container ──────────────────────────────────────── */
+#deck {
+  position: fixed; inset: 0;
+  font-family: 'Lato', sans-serif;
+  color: var(--bloom-white);
+  overflow: hidden;
+}
+
+/* ── Individual Slides ─────────────────────────────────────────── */
+.slide {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  padding: 48px 64px;
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(60px);
+  transition: opacity var(--transition), transform var(--transition);
+  overflow: hidden;
+}
+.slide.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateX(0);
+}
+.slide.exit-left  { opacity: 0; transform: translateX(-60px); }
+.slide.exit-right { opacity: 0; transform: translateX(60px); }
+
+/* ── Slide Backgrounds ─────────────────────────────────────────── */
+.bg-dark { background: var(--bloom-dark); }
+.bg-hero {
+  background: linear-gradient(135deg, var(--bloom-darker) 0%, #1a0a0b 40%, var(--bloom-dark) 100%);
+}
+.bg-section {
+  background: linear-gradient(135deg, var(--bloom-red) 0%, #7a1015 60%, var(--bloom-darker) 100%);
+}
+.bg-content { background: #12122a; }
+.bg-tech {
+  background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, #0a0d20 100%);
+}
+.bg-launch {
+  background: linear-gradient(160deg, #0d0d1a 0%, #1a0505 50%, #0d0d1a 100%);
+}
+
+/* ── Decorative Background Elements ───────────────────────────── */
+.slide::before {
+  content: '';
+  position: absolute; inset: 0;
+  pointer-events: none;
+}
+.bg-hero::before {
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 30%, rgba(178,32,37,0.25) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 10% 80%, rgba(178,32,37,0.12) 0%, transparent 70%);
+}
+.bg-dark::before, .bg-content::before, .bg-tech::before, .bg-launch::before {
+  background: radial-gradient(ellipse 50% 60% at 90% 10%, rgba(178,32,37,0.12) 0%, transparent 60%);
+}
+.bg-section::before {
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(255,255,255,0.06) 0%, transparent 70%);
+}
+
+/* Grid pattern overlay */
+.slide::after {
+  content: '';
+  position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.025) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.025) 1px, transparent 1px);
+  background-size: 60px 60px;
+  pointer-events: none;
+}
+.bg-section::after { opacity: 0.3; }
+
+/* ── Typography ────────────────────────────────────────────────── */
+.title-xl {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(2.2rem, 5vw, 4rem);
+  font-weight: 900;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+.title-lg {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(1.8rem, 3.5vw, 2.8rem);
+  font-weight: 800;
+  line-height: 1.15;
+}
+.title-md {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(1.4rem, 2.5vw, 2rem);
+  font-weight: 700;
+}
+.title-sm {
+  font-family: 'Poppins', sans-serif;
+  font-size: clamp(1rem, 1.8vw, 1.4rem);
+  font-weight: 600;
+}
+.body-lg { font-size: clamp(1rem, 1.6vw, 1.2rem); font-weight: 400; line-height: 1.65; color: rgba(255,255,255,0.85); }
+.body-md { font-size: clamp(0.875rem, 1.3vw, 1.05rem); font-weight: 400; line-height: 1.6; color: rgba(255,255,255,0.75); }
+.body-sm { font-size: 0.85rem; line-height: 1.5; color: var(--bloom-muted); }
+
+.text-red   { color: var(--bloom-red-2); }
+.text-white { color: var(--bloom-white); }
+.text-muted { color: var(--bloom-muted); }
+
+/* ── Utility ───────────────────────────────────────────────────── */
+.z-content { position: relative; z-index: 2; }
+.w-full  { width: 100%; }
+.flex    { display: flex; }
+.col     { flex-direction: column; }
+.center  { align-items: center; justify-content: center; }
+.gap-8   { gap: 8px; }
+.gap-16  { gap: 16px; }
+.gap-24  { gap: 24px; }
+.gap-32  { gap: 32px; }
+.gap-40  { gap: 40px; }
+.mb-8    { margin-bottom: 8px; }
+.mb-16   { margin-bottom: 16px; }
+.mb-24   { margin-bottom: 24px; }
+.mb-32   { margin-bottom: 32px; }
+.mt-8    { margin-top: 8px; }
+.mt-16   { margin-top: 16px; }
+.ta-c    { text-align: center; }
+.ta-l    { text-align: left; }
+
+/* ── Red Accent / Pill ─────────────────────────────────────────── */
+.red-pill {
+  display: inline-flex; align-items: center; gap: 8px;
+  background: rgba(178,32,37,0.2);
+  border: 1px solid rgba(178,32,37,0.5);
+  color: #ff6b6e;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem; font-weight: 600;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  padding: 6px 16px; border-radius: 100px;
+}
+.red-bar {
+  width: 56px; height: 4px;
+  background: var(--bloom-red);
+  border-radius: 2px;
+}
+
+/* ── Cards ─────────────────────────────────────────────────────── */
+.card {
+  background: var(--bloom-card);
+  border: 1px solid var(--bloom-border);
+  border-radius: 20px;
+  padding: 28px 24px;
+  backdrop-filter: blur(10px);
+}
+
+/* ── Feature Item ──────────────────────────────────────────────── */
+.feat-item {
+  display: flex; align-items: flex-start; gap: 16px;
+  padding: 20px 24px;
+  background: var(--bloom-card);
+  border: 1px solid var(--bloom-border);
+  border-radius: 16px;
+  transition: border-color 0.3s, transform 0.3s;
+}
+.feat-item:hover { border-color: rgba(178,32,37,0.5); transform: translateY(-2px); }
+.feat-icon {
+  width: 48px; height: 48px; flex-shrink: 0;
+  background: rgba(178,32,37,0.15);
+  border: 1px solid rgba(178,32,37,0.3);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.2rem; color: var(--bloom-red-2);
+}
+.feat-icon.blue  { background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.3); color: #60a5fa; }
+.feat-icon.green { background: rgba(16,185,129,0.15); border-color: rgba(16,185,129,0.3); color: #34d399; }
+.feat-icon.amber { background: rgba(245,158,11,0.15); border-color: rgba(245,158,11,0.3); color: #fbbf24; }
+.feat-icon.purple{ background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.3); color: #a78bfa; }
+
+/* ── Step Flow ─────────────────────────────────────────────────── */
+.step-flow { display: flex; align-items: center; gap: 0; }
+.step-box {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 12px; padding: 24px 20px;
+  background: var(--bloom-card);
+  border: 1px solid var(--bloom-border);
+  border-radius: 20px;
+  text-align: center;
+  flex: 1; min-width: 0;
+  transition: border-color 0.3s, transform 0.3s;
+}
+.step-box:hover { border-color: rgba(178,32,37,0.5); transform: translateY(-3px); }
+.step-num {
+  width: 44px; height: 44px;
+  background: var(--bloom-red);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.1rem; font-weight: 800;
+}
+.step-arrow {
+  width: 40px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(178,32,37,0.6); font-size: 1.2rem;
+}
+
+/* ── App Ecosystem Cards ───────────────────────────────────────── */
+.eco-card {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 32px 24px;
+  background: var(--bloom-card);
+  border: 1px solid var(--bloom-border);
+  border-radius: 24px;
+  text-align: center;
+  flex: 1;
+  transition: border-color 0.4s, transform 0.4s, box-shadow 0.4s;
+  cursor: default;
+}
+.eco-card:hover {
+  border-color: rgba(178,32,37,0.6);
+  transform: translateY(-6px);
+  box-shadow: 0 20px 50px rgba(0,0,0,0.4);
+}
+.eco-icon {
+  width: 72px; height: 72px;
+  border-radius: 20px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2rem;
+}
+.eco-icon.staff  { background: linear-gradient(135deg, #b22025, #7a1015); color: white; }
+.eco-icon.driver { background: linear-gradient(135deg, #1e40af, #1e3a8a); color: white; }
+.eco-icon.admin  { background: linear-gradient(135deg, #065f46, #047857); color: white; }
+
+/* ── Section Title Slide ───────────────────────────────────────── */
+.section-badge {
+  display: inline-flex; align-items: center; gap: 10px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.25);
+  padding: 8px 20px; border-radius: 100px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.8rem; font-weight: 600;
+  letter-spacing: 0.15em; text-transform: uppercase;
+}
+.big-icon-circle {
+  width: 120px; height: 120px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.15);
+  border: 2px solid rgba(255,255,255,0.3);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 3.5rem;
+}
+
+/* ── Launchpad Buttons ─────────────────────────────────────────── */
+.launch-btn {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 16px; padding: 36px 28px;
+  background: var(--bloom-card);
+  border: 1px solid var(--bloom-border);
+  border-radius: 28px;
+  text-decoration: none; color: var(--bloom-white);
+  flex: 1;
+  transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+}
+.launch-btn:hover {
+  transform: translateY(-8px) scale(1.02);
+  box-shadow: 0 24px 60px rgba(0,0,0,0.5), var(--shadow-red);
+}
+.launch-btn.staff:hover  { border-color: rgba(178,32,37,0.8); background: rgba(178,32,37,0.12); }
+.launch-btn.driver:hover { border-color: rgba(59,130,246,0.8); background: rgba(59,130,246,0.08); }
+.launch-btn.admin:hover  { border-color: rgba(16,185,129,0.8); background: rgba(16,185,129,0.08); }
+.launch-icon {
+  width: 80px; height: 80px;
+  border-radius: 22px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 2.2rem;
+}
+.launch-icon.staff  { background: linear-gradient(135deg, #b22025 0%, #7a1015 100%); }
+.launch-icon.driver { background: linear-gradient(135deg, #1e40af 0%, #1e3a8a 100%); }
+.launch-icon.admin  { background: linear-gradient(135deg, #065f46 0%, #047857 100%); }
+.launch-arrow {
+  margin-top: auto;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.9rem;
+  transition: background 0.3s, transform 0.3s;
+}
+.launch-btn:hover .launch-arrow { background: var(--bloom-red); transform: translateX(4px); }
+
+/* ── KPI Stats Bar ─────────────────────────────────────────────── */
+.kpi-row {
+  display: flex; gap: 16px;
+}
+.kpi-box {
+  flex: 1; padding: 20px 16px;
+  background: var(--bloom-card);
+  border: 1px solid var(--bloom-border);
+  border-radius: 16px;
+  text-align: center;
+}
+.kpi-num {
+  font-family: 'Poppins', sans-serif;
+  font-size: 2rem; font-weight: 800;
+  color: var(--bloom-red-2);
+}
+.kpi-desc { font-size: 0.78rem; color: var(--bloom-muted); margin-top: 4px; }
+
+/* ── Tech Slide Visuals ────────────────────────────────────────── */
+.tech-ring {
+  position: relative;
+  width: 180px; height: 180px;
+  flex-shrink: 0;
+}
+.tech-ring svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+.tech-ring-bg { stroke: rgba(255,255,255,0.08); fill: none; stroke-width: 12; }
+.tech-ring-fill {
+  stroke: var(--bloom-red-2); fill: none; stroke-width: 12;
+  stroke-linecap: round;
+  stroke-dasharray: 502; stroke-dashoffset: 502;
+  transition: stroke-dashoffset 2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.tech-ring-fill.animated { stroke-dashoffset: 10; }
+.tech-ring-label {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  font-family: 'Poppins', sans-serif;
+}
+.tech-ring-pct { font-size: 2.2rem; font-weight: 900; color: var(--bloom-red-2); }
+.tech-ring-sub { font-size: 0.65rem; font-weight: 600; color: var(--bloom-muted); text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* ── Simulator Modal ───────────────────────────────────────────── */
+#sim-modal {
+  position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.88);
+  backdrop-filter: blur(10px);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 28px;
+  opacity: 0; pointer-events: none;
+  transition: opacity 0.4s;
+}
+#sim-modal.open { opacity: 1; pointer-events: auto; }
+
+.sim-header { text-align: center; }
+.sim-title {
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.5rem; font-weight: 800;
+  margin-bottom: 4px;
+}
+.sim-sub { color: var(--bloom-muted); font-size: 0.9rem; }
+
+.sim-stage {
+  display: flex; align-items: center; justify-content: center;
+  gap: 56px; width: 100%; max-width: 760px;
+  position: relative;
+}
+
+/* Phone mockup */
+.phone-wrap { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.phone-label {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--bloom-muted);
+}
+.phone {
+  width: 160px;
+  background: #0a0a14;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 28px;
+  padding: 20px 12px;
+  position: relative;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+.phone-notch {
+  width: 60px; height: 10px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 0 0 8px 8px;
+  margin: 0 auto 12px;
+}
+.phone-screen { min-height: 160px; position: relative; overflow: hidden; }
+
+/* Staff phone content */
+.phone-scan-area {
+  border: 1px solid rgba(178,32,37,0.4);
+  border-radius: 10px; padding: 8px;
+  margin-bottom: 8px; text-align: center;
+  position: relative;
+  transition: border-color 0.4s;
+}
+.phone-barcode-icon { font-size: 1.6rem; color: var(--bloom-red-2); margin-bottom: 4px; }
+.phone-barcode-text { font-size: 0.55rem; color: var(--bloom-muted); font-family: monospace; }
+.phone-order-card {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 8px; padding: 8px;
+  font-size: 0.6rem; color: var(--bloom-white);
+}
+.phone-order-id { font-weight: 700; color: var(--bloom-red-2); margin-bottom: 2px; }
+
+/* Flying card */
+#flying-card {
+  width: 90px;
+  background: var(--bloom-red);
+  border-radius: 10px; padding: 8px 10px;
+  font-size: 0.6rem; font-weight: 700;
+  text-align: center; color: white;
+  box-shadow: 0 8px 24px rgba(178,32,37,0.6);
+  opacity: 0; z-index: 10;
+  pointer-events: none;
+  white-space: nowrap;
+  position: absolute;
+}
+
+/* Driver phone content */
+.manifest-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  font-size: 0.55rem;
+}
+.manifest-row:last-child { border-bottom: none; }
+.manifest-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: rgba(255,255,255,0.2); flex-shrink: 0;
+}
+.manifest-dot.active { background: var(--bloom-red-2); }
+.manifest-dot.new-pulse { background: #34d399; animation: pulseGreen 0.7s ease 4; }
+.manifest-text { color: rgba(255,255,255,0.7); }
+
+/* Sim arrow area */
+.sim-arrow-area {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  flex-shrink: 0;
+}
+.sim-arrow-track {
+  width: 120px; height: 3px;
+  background: rgba(255,255,255,0.1);
+  border-radius: 2px; overflow: hidden;
+}
+.sim-arrow-fill {
+  height: 100%; width: 0%;
+  background: linear-gradient(90deg, var(--bloom-red), var(--bloom-red-2));
+  border-radius: 2px;
+  transition: width 1.4s ease;
+}
+.sim-arrow-fill.filled { width: 100%; }
+
+/* Sim controls */
+.sim-controls { display: flex; gap: 16px; flex-wrap: wrap; justify-content: center; }
+.sim-btn {
+  padding: 12px 28px;
+  border: none; border-radius: 100px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.9rem; font-weight: 700;
+  cursor: pointer;
+  transition: all 0.25s;
+}
+.sim-btn.primary {
+  background: var(--bloom-red); color: white;
+  box-shadow: 0 4px 20px rgba(178,32,37,0.5);
+}
+.sim-btn.primary:hover { background: var(--bloom-red-2); transform: translateY(-2px); }
+.sim-btn.secondary {
+  background: rgba(255,255,255,0.08); color: white;
+  border: 1px solid rgba(255,255,255,0.15);
+}
+.sim-btn.secondary:hover { background: rgba(255,255,255,0.14); }
+.sim-btn:disabled { opacity: 0.45; cursor: not-allowed; transform: none !important; }
+
+.sim-status {
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.85rem; font-weight: 600;
+  color: var(--bloom-muted); text-align: center;
+  min-height: 22px; transition: color 0.4s;
+}
+.sim-status.go { color: #34d399; }
+
+/* ── Navigation Dots ───────────────────────────────────────────── */
+#nav-dots {
+  position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; z-index: 100;
+}
+.dot {
+  width: 8px; height: 8px; border-radius: 100px;
+  background: rgba(255,255,255,0.2);
+  border: none; cursor: pointer;
+  transition: all 0.3s; padding: 0;
+}
+.dot.active { width: 28px; background: var(--bloom-red-2); }
+.dot:hover:not(.active) { background: rgba(255,255,255,0.45); }
+
+/* ── Nav Arrows ────────────────────────────────────────────────── */
+.nav-arrow {
+  position: fixed; top: 50%; z-index: 100;
+  transform: translateY(-50%);
+  width: 48px; height: 48px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  color: rgba(255,255,255,0.4); font-size: 1rem;
+  cursor: pointer; transition: all 0.25s;
+  backdrop-filter: blur(4px);
+}
+.nav-arrow:hover { background: rgba(178,32,37,0.3); border-color: rgba(178,32,37,0.5); color: white; }
+.nav-arrow.left  { left: 20px; }
+.nav-arrow.right { right: 20px; }
+.nav-arrow.hidden { opacity: 0; pointer-events: none; }
+
+/* ── Slide counter ─────────────────────────────────────────────── */
+#slide-counter {
+  position: fixed; top: 24px; right: 28px; z-index: 100;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.75rem; font-weight: 600;
+  color: rgba(255,255,255,0.25);
+  letter-spacing: 0.05em;
+}
+
+/* ── Logo area ─────────────────────────────────────────────────── */
+.logo-img { height: 64px; width: auto; object-fit: contain; }
+.logo-fallback {
+  font-family: 'Poppins', sans-serif;
+  font-size: 2rem; font-weight: 900;
+  color: var(--bloom-red);
+  letter-spacing: -0.04em;
+}
+
+/* ── Two-column layout helper ──────────────────────────────────── */
+.two-col { display: flex; gap: 40px; align-items: flex-start; width: 100%; }
+.col-left  { flex: 1.1; }
+.col-right { flex: 0.9; }
+
+/* ── Animations ────────────────────────────────────────────────── */
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideFromRight {
+  from { opacity: 0; transform: translateX(40px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.82); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes pulseGreen {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(52,211,153,0.5); }
+  50% { opacity: 0.5; box-shadow: 0 0 0 4px rgba(52,211,153,0); }
+}
+@keyframes scanLine {
+  0%, 100% { top: 15%; }
+  50%  { top: 78%; }
+}
+@keyframes softPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* Stagger helpers (only animate when slide is active) */
+.anim-1 { opacity: 0; }
+.anim-2 { opacity: 0; }
+.anim-3 { opacity: 0; }
+.anim-4 { opacity: 0; }
+.anim-5 { opacity: 0; }
+.anim-l1 { opacity: 0; }
+.anim-l2 { opacity: 0; }
+.anim-l3 { opacity: 0; }
+.anim-sc { opacity: 0; }
+
+.slide.active .anim-1 { animation: fadeUp 0.55s ease forwards 0.1s; }
+.slide.active .anim-2 { animation: fadeUp 0.55s ease forwards 0.25s; }
+.slide.active .anim-3 { animation: fadeUp 0.55s ease forwards 0.4s; }
+.slide.active .anim-4 { animation: fadeUp 0.55s ease forwards 0.55s; }
+.slide.active .anim-5 { animation: fadeUp 0.55s ease forwards 0.7s; }
+.slide.active .anim-l1 { animation: slideFromRight 0.55s ease forwards 0.15s; }
+.slide.active .anim-l2 { animation: slideFromRight 0.55s ease forwards 0.3s; }
+.slide.active .anim-l3 { animation: slideFromRight 0.55s ease forwards 0.45s; }
+.slide.active .anim-sc { animation: scaleIn 0.55s ease forwards 0.15s; }
+
+/* ── Open Simulator Button ─────────────────────────────────────── */
+.open-sim-btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 14px 32px;
+  background: var(--bloom-red); color: white;
+  border: none; border-radius: 100px;
+  font-family: 'Poppins', sans-serif;
+  font-size: 0.95rem; font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 28px rgba(178,32,37,0.5);
+  transition: all 0.3s;
+}
+.open-sim-btn:hover { background: var(--bloom-red-2); transform: translateY(-2px); box-shadow: 0 10px 36px rgba(178,32,37,0.6); }
+
+/* ── Tech bar chart ────────────────────────────────────────────── */
+.bar-track {
+  width: 100%; height: 10px;
+  background: rgba(255,255,255,0.08);
+  border-radius: 5px; overflow: hidden;
+}
+.bar-fill {
+  height: 100%; width: 0; border-radius: 5px;
+  transition: width 1.8s cubic-bezier(0.4, 0, 0.2, 1) 0.4s;
+}
+.bar-fill.red   { background: linear-gradient(90deg, #b22025, #d4282e); }
+.bar-fill.green { background: linear-gradient(90deg, #059669, #34d399); }
+.slide.active .bar-fill.red   { width: 100%; }
+.slide.active .bar-fill.green { width: 2.1%; }
+
+/* ── Status dot pulse ──────────────────────────────────────────── */
+.pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #34d399; flex-shrink: 0;
+  animation: softPulse 1.6s ease infinite;
+}
+
+/* ── Responsive adjustments ────────────────────────────────────── */
+@media (max-width: 900px) {
+  .slide { padding: 28px 24px; }
+  .two-col { flex-direction: column; }
+  .step-flow { flex-direction: column; align-items: stretch; }
+  .step-arrow { transform: rotate(90deg); width: auto; height: 24px; }
+  .sim-stage { flex-direction: column; gap: 24px; }
+  .sim-arrow-track { width: 3px; height: 60px; }
+  .sim-arrow-fill { width: 100%; height: 0%; transition: height 1.4s ease; }
+  .sim-arrow-fill.filled { height: 100%; }
+  .eco-card { padding: 20px 16px; }
+}
+</style>
+</head>
+<body>
+
+<div id="deck">
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 1: Hero Title                                        -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-hero active" data-index="0">
+    <div class="z-content flex col center ta-c" style="max-width:820px">
+
+      <!-- Official Brand Logo -->
+      <div class="flex center mb-28 anim-sc">
+        <img id="logo-main"
+             src="https://bloompharmacy.github.io/bloom-delivery/B-big-logo.png"
+             alt="Bloom Pharmacy"
+             style="height:clamp(56px,8vw,96px);width:auto;object-fit:contain;filter:drop-shadow(0 4px 24px rgba(178,32,37,0.35))" />
+      </div>
+
+      <div class="red-pill anim-1 mb-16">
+        <i class="fa-solid fa-circle-dot" style="font-size:0.55rem"></i>
+        Staff Training Session · 2025
+      </div>
+
+      <h1 class="title-xl anim-2 mb-16">
+        The Future of Our<br>
+        <span class="text-red">Delivery Logistics</span>
+      </h1>
+
+      <p class="body-lg anim-3 mb-32" style="max-width:560px">
+        A complete training guide to the <strong>Bloom Delivery Platform</strong> —
+        three purpose-built apps working as one, for staff, drivers &amp; managers.
+      </p>
+
+      <div class="flex gap-20 anim-4">
+        <div class="card" style="padding:16px 28px;text-align:center">
+          <div style="font-family:'Poppins',sans-serif;font-size:2.2rem;font-weight:900;color:var(--bloom-red-2)">3</div>
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--bloom-muted);margin-top:2px">Apps</div>
+        </div>
+        <div class="card" style="padding:16px 28px;text-align:center">
+          <div style="font-family:'Poppins',sans-serif;font-size:2.2rem;font-weight:900;color:var(--bloom-red-2)">12</div>
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--bloom-muted);margin-top:2px">Modules</div>
+        </div>
+        <div class="card" style="padding:16px 28px;text-align:center">
+          <div style="font-family:'Poppins',sans-serif;font-size:2.2rem;font-weight:900;color:var(--bloom-red-2)">98%</div>
+          <div style="font-size:0.72rem;text-transform:uppercase;letter-spacing:0.1em;color:var(--bloom-muted);margin-top:2px">Faster Sync</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- decorative rings -->
+    <div style="position:absolute;width:320px;height:320px;border-radius:50%;border:1px solid rgba(178,32,37,0.12);top:-80px;right:-100px;z-index:1;pointer-events:none"></div>
+    <div style="position:absolute;width:220px;height:220px;border-radius:50%;border:1px solid rgba(178,32,37,0.08);bottom:20px;left:-60px;z-index:1;pointer-events:none"></div>
+    <div style="position:absolute;width:500px;height:500px;border-radius:50%;border:1px solid rgba(178,32,37,0.05);bottom:-200px;right:-160px;z-index:1;pointer-events:none"></div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 2: Ecosystem Overview                                -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-dark" data-index="1">
+    <div class="z-content w-full" style="max-width:980px">
+      <div class="ta-c mb-28">
+        <div class="red-pill anim-1 mb-14">Platform Overview</div>
+        <h2 class="title-lg anim-2 mb-10">Three Apps. One Seamless Flow.</h2>
+        <p class="body-md anim-3" style="max-width:520px;margin:0 auto">
+          Every order travels through three purpose-built applications — each designed for one role, working as one interconnected system.
+        </p>
+      </div>
+
+      <div class="flex gap-20 anim-4" style="align-items:stretch">
+        <div class="eco-card">
+          <div class="eco-icon staff"><i class="fa-solid fa-barcode"></i></div>
+          <div class="title-sm mb-8" style="color:white">Handover App</div>
+          <div class="body-md mb-12">For <strong>Staff</strong> at branch counter — scan packages, select delivery zones, assign drivers</div>
+          <div class="red-pill" style="font-size:0.65rem;margin-top:auto">Staff · Counter</div>
+        </div>
+
+        <div class="flex col center" style="flex-shrink:0;gap:4px">
+          <div style="width:2px;height:32px;background:linear-gradient(180deg,transparent,rgba(178,32,37,0.5))"></div>
+          <i class="fa-solid fa-right-left" style="color:rgba(178,32,37,0.6);font-size:1.1rem"></i>
+          <div style="width:2px;height:32px;background:linear-gradient(180deg,rgba(178,32,37,0.5),transparent)"></div>
+        </div>
+
+        <div class="eco-card">
+          <div class="eco-icon driver"><i class="fa-solid fa-truck-fast"></i></div>
+          <div class="title-sm mb-8" style="color:white">Delivery App</div>
+          <div class="body-md mb-12">For <strong>Drivers</strong> on the road — manifest view, one-tap status updates, cash collection in full Arabic RTL</div>
+          <div class="red-pill" style="font-size:0.65rem;margin-top:auto;border-color:rgba(59,130,246,0.5);background:rgba(59,130,246,0.12);color:#93c5fd">Drivers · Field</div>
+        </div>
+
+        <div class="flex col center" style="flex-shrink:0;gap:4px">
+          <div style="width:2px;height:32px;background:linear-gradient(180deg,transparent,rgba(178,32,37,0.5))"></div>
+          <i class="fa-solid fa-right-left" style="color:rgba(178,32,37,0.6);font-size:1.1rem"></i>
+          <div style="width:2px;height:32px;background:linear-gradient(180deg,rgba(178,32,37,0.5),transparent)"></div>
+        </div>
+
+        <div class="eco-card">
+          <div class="eco-icon admin"><i class="fa-solid fa-chart-line"></i></div>
+          <div class="title-sm mb-8" style="color:white">Manager Portal</div>
+          <div class="body-md mb-12">For <strong>Managers</strong> &amp; Admins — live KPIs, multi-branch oversight, transfers, financial reconciliation</div>
+          <div class="red-pill" style="font-size:0.65rem;margin-top:auto;border-color:rgba(16,185,129,0.5);background:rgba(16,185,129,0.12);color:#6ee7b7">Managers · HQ</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 3: Module 1 — Section Title                         -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-section" data-index="2">
+    <div class="z-content flex col center ta-c gap-20">
+      <div class="section-badge anim-1">
+        <i class="fa-solid fa-layer-group"></i>
+        Module 01
+      </div>
+      <div class="big-icon-circle anim-sc">
+        <i class="fa-solid fa-barcode"></i>
+      </div>
+      <div class="anim-2">
+        <h2 class="title-lg mb-10">The Handover App</h2>
+        <p class="body-lg" style="max-width:500px;color:rgba(255,255,255,0.88)">
+          The front-line tool for staff at the branch counter.<br>
+          Fast, accurate, and built to eliminate human error.
+        </p>
+      </div>
+      <div class="flex gap-12 anim-3">
+        <div style="padding:8px 18px;background:rgba(255,255,255,0.12);border-radius:100px;font-size:0.78rem">
+          <i class="fa-solid fa-users" style="margin-right:5px"></i>For Staff
+        </div>
+        <div style="padding:8px 18px;background:rgba(255,255,255,0.12);border-radius:100px;font-size:0.78rem">
+          <i class="fa-solid fa-store" style="margin-right:5px"></i>Branch Counter
+        </div>
+        <div style="padding:8px 18px;background:rgba(255,255,255,0.12);border-radius:100px;font-size:0.78rem">
+          <i class="fa-solid fa-mobile-screen" style="margin-right:5px"></i>Mobile-First
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 4: Handover Features                                 -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-content" data-index="3">
+    <div class="z-content w-full" style="max-width:960px">
+      <div class="mb-24">
+        <div class="red-pill anim-1 mb-12">Handover App · Features</div>
+        <h2 class="title-md anim-2 mb-10">Built for Speed &amp; Accuracy</h2>
+        <div class="red-bar anim-3"></div>
+      </div>
+
+      <div class="flex col gap-12 w-full">
+        <div class="feat-item anim-1">
+          <div class="feat-icon"><i class="fa-solid fa-barcode"></i></div>
+          <div>
+            <div class="title-sm mb-4">Camera Barcode Scanning</div>
+            <div class="body-md">Scan any package barcode instantly using the phone camera — no hardware scanner needed. The app handles orientation and lighting automatically for fast, reliable reads.</div>
+          </div>
+        </div>
+
+        <div class="feat-item anim-2">
+          <div class="feat-icon green"><i class="fa-solid fa-shield-halved"></i></div>
+          <div>
+            <div class="title-sm mb-4">Anti-Duplicate Protection</div>
+            <div class="body-md">The system detects if a barcode has already been scanned today. A real-time alert prevents the same package from being assigned twice — zero double-delivery risk.</div>
+          </div>
+        </div>
+
+        <div class="feat-item anim-3">
+          <div class="feat-icon blue"><i class="fa-solid fa-map-location-dot"></i></div>
+          <div>
+            <div class="title-sm mb-4">Live Zone Selection</div>
+            <div class="body-md">Delivery zones update in real-time via Firebase push. If a manager adds or removes a zone, the picker updates within seconds on all devices — no page reload required.</div>
+          </div>
+        </div>
+
+        <div class="feat-item anim-4">
+          <div class="feat-icon amber"><i class="fa-solid fa-truck"></i></div>
+          <div>
+            <div class="title-sm mb-4">Driver Assignment &amp; Dispatch</div>
+            <div class="body-md">View all available drivers, check their current load, and assign packages with one tap. Orders appear on the driver's manifest instantly via real-time sync.</div>
+          </div>
+        </div>
+
+        <div class="feat-item anim-5">
+          <div class="feat-icon purple"><i class="fa-solid fa-table-list"></i></div>
+          <div>
+            <div class="title-sm mb-4">Operational Visibility Matrix</div>
+            <div class="body-md">Staff and branch managers can use the <strong>historical search grid</strong> to track the real-time lifecycle of any order — instantly checking its current state (Delivered, Handed Over, or Voided), identifying exactly which courier is physically holding the package, and actively monitoring dispatch speeds across every active shift.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 5: Staff Flow + Live Simulator Button                -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-dark" data-index="4">
+    <div class="z-content w-full" style="max-width:960px">
+      <div class="mb-24">
+        <div class="red-pill anim-1 mb-12">How It Works</div>
+        <h2 class="title-md anim-2 mb-10">The 3-Step Staff Workflow</h2>
+        <div class="red-bar anim-3"></div>
+      </div>
+
+      <div class="step-flow anim-4 mb-28">
+        <div class="step-box">
+          <div class="step-num">1</div>
+          <div class="feat-icon" style="width:40px;height:40px;font-size:1rem;margin:0">
+            <i class="fa-solid fa-lock-open"></i>
+          </div>
+          <div class="title-sm ta-c">Login</div>
+          <div class="body-sm ta-c">Enter your staff passcode to begin your session</div>
+        </div>
+        <div class="step-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+        <div class="step-box">
+          <div class="step-num">2</div>
+          <div class="feat-icon" style="width:40px;height:40px;font-size:1rem;margin:0">
+            <i class="fa-solid fa-barcode"></i>
+          </div>
+          <div class="title-sm ta-c">Scan</div>
+          <div class="body-sm ta-c">Point camera at barcode for instant recognition</div>
+        </div>
+        <div class="step-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+        <div class="step-box">
+          <div class="step-num">3</div>
+          <div class="feat-icon blue" style="width:40px;height:40px;font-size:1rem;margin:0">
+            <i class="fa-solid fa-map-pin"></i>
+          </div>
+          <div class="title-sm ta-c">Assign</div>
+          <div class="body-sm ta-c">Pick zone &amp; driver — order dispatches instantly</div>
+        </div>
+        <div class="step-arrow"><i class="fa-solid fa-chevron-right"></i></div>
+
+        <div class="step-box" style="border-color:rgba(52,211,153,0.35);background:rgba(52,211,153,0.05)">
+          <div class="step-num" style="background:#059669;font-size:1.3rem">✓</div>
+          <div class="feat-icon green" style="width:40px;height:40px;font-size:1rem;margin:0">
+            <i class="fa-solid fa-check-double"></i>
+          </div>
+          <div class="title-sm ta-c" style="color:#34d399">Done!</div>
+          <div class="body-sm ta-c">Driver sees the order on their manifest immediately</div>
+        </div>
+      </div>
+
+      <div class="ta-c anim-5">
+        <button class="open-sim-btn" onclick="openSimulator()">
+          <i class="fa-solid fa-play-circle"></i>
+          Launch Live Simulator
+        </button>
+        <div class="body-sm mt-8">Watch an order fly from Handover App → Driver Manifest in real time</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 6: Module 2 — Section Title                         -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-section" data-index="5">
+    <div class="z-content flex col center ta-c gap-20">
+      <div class="section-badge anim-1">
+        <i class="fa-solid fa-layer-group"></i>
+        Module 02
+      </div>
+      <div class="big-icon-circle anim-sc">
+        <i class="fa-solid fa-truck-fast"></i>
+      </div>
+      <div class="anim-2">
+        <h2 class="title-lg mb-10">The Delivery App</h2>
+        <p class="body-lg" style="max-width:500px;color:rgba(255,255,255,0.88)">
+          Built for drivers on the road. Full Arabic RTL support,<br>
+          offline-first capability, and one-tap status updates.
+        </p>
+      </div>
+      <div class="flex gap-12 anim-3">
+        <div style="padding:8px 18px;background:rgba(255,255,255,0.12);border-radius:100px;font-size:0.78rem">
+          <i class="fa-solid fa-truck-fast" style="margin-right:5px"></i>For Drivers
+        </div>
+        <div style="padding:8px 18px;background:rgba(255,255,255,0.12);border-radius:100px;font-size:0.78rem">
+          <i class="fa-solid fa-language" style="margin-right:5px"></i>Arabic RTL
+        </div>
+        <div style="padding:8px 18px;background:rgba(255,255,255,0.12);border-radius:100px;font-size:0.78rem">
+          <i class="fa-solid fa-wifi" style="margin-right:5px"></i>Offline Ready
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 7: Driver Features                                   -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-content" data-index="6">
+    <div class="z-content w-full" style="max-width:960px">
+      <div class="two-col" style="align-items:center">
+        <div class="col-left">
+          <div class="red-pill anim-1 mb-16">Driver App · Features</div>
+          <h2 class="title-md anim-2 mb-20">Your Orders. On the Road.</h2>
+
+          <div class="flex col gap-12">
+            <div class="feat-item anim-l1" style="padding:16px 18px">
+              <div class="feat-icon" style="width:42px;height:42px;font-size:1rem"><i class="fa-solid fa-list-check"></i></div>
+              <div>
+                <div class="title-sm mb-3">Smart Manifest</div>
+                <div class="body-sm">All orders with customer name, zone, SLA timer &amp; cash amount — auto-sorted by priority.</div>
+              </div>
+            </div>
+
+            <div class="feat-item anim-l2" style="padding:16px 18px">
+              <div class="feat-icon amber" style="width:42px;height:42px;font-size:1rem"><i class="fa-solid fa-language"></i></div>
+              <div>
+                <div class="title-sm mb-3">Full Arabic RTL</div>
+                <div class="body-sm">Every screen, label and button is displayed right-to-left in Arabic — native experience for Egyptian drivers.</div>
+              </div>
+            </div>
+
+            <div class="feat-item anim-l3" style="padding:16px 18px">
+              <div class="feat-icon green" style="width:42px;height:42px;font-size:1rem"><i class="fa-solid fa-hand-pointer"></i></div>
+              <div>
+                <div class="title-sm mb-3">One-Tap Status Updates</div>
+                <div class="body-sm">Mark Delivered, Returned, or Postponed with a single tap — syncs to HQ in under 2 seconds.</div>
+              </div>
+            </div>
+
+            <div class="feat-item anim-4" style="padding:16px 18px">
+              <div class="feat-icon purple" style="width:42px;height:42px;font-size:1rem"><i class="fa-solid fa-money-bill-wave"></i></div>
+              <div>
+                <div class="title-sm mb-3">Cash Collection Log</div>
+                <div class="body-sm">Auto-tallied amounts per order. End-of-shift summary ready for reconciliation — no manual counting.</div>
+              </div>
+            </div>
+
+            <div class="feat-item anim-5" style="padding:16px 18px">
+              <div class="feat-icon blue" style="width:42px;height:42px;font-size:1rem"><i class="fa-solid fa-right-left"></i></div>
+              <div>
+                <div class="title-sm mb-3">Inter-Branch Stock Transfers</div>
+                <div class="body-sm">Couriers can formally <strong>track and log every branch-to-branch inventory transfer</strong> they physically execute — creating a verified paper trail for every item moved between locations, viewable in real time by branch managers.</div>
+              </div>
+            </div>
+
+            <div class="feat-item" style="padding:16px 18px;animation:slideFromRight 0.55s ease forwards 0.6s;opacity:0">
+              <div class="feat-icon" style="width:42px;height:42px;font-size:1rem;background:rgba(251,191,36,0.12);border-color:rgba(251,191,36,0.3);color:#fbbf24"><i class="fa-solid fa-clock-rotate-left"></i></div>
+              <div>
+                <div class="title-sm mb-3">Driver Trip History Log</div>
+                <div class="body-sm">Drivers can open their <strong>personal profile section</strong> to view a rolling 7-day history of every package they successfully delivered — enabling effortless self-auditing and transparent performance tracking without manager intervention.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Arabic phone mockup -->
+        <div class="col-right flex center anim-sc">
+          <div class="phone" style="width:175px;transform:rotate(2.5deg);box-shadow:0 28px 72px rgba(0,0,0,0.7)">
+            <div class="phone-notch"></div>
+            <div class="phone-screen">
+              <div style="font-size:0.58rem;color:var(--bloom-red-2);font-weight:700;margin-bottom:8px;font-family:'Poppins',sans-serif;text-align:right">قائمة التوصيل</div>
+              <div style="font-size:0.5rem;color:var(--bloom-muted);margin-bottom:8px;text-align:right;direction:rtl">اليوم · 4 طلبات</div>
+              <div class="manifest-row"><div class="manifest-dot active"></div><div class="manifest-text" style="direction:rtl">أحمد محمد · منطقة أ · 45 ج</div></div>
+              <div class="manifest-row"><div class="manifest-dot active"></div><div class="manifest-text" style="direction:rtl">سارة علي · منطقة ب · 80 ج</div></div>
+              <div class="manifest-row"><div class="manifest-dot"></div><div class="manifest-text" style="direction:rtl">محمد حسن · منطقة ج · 60 ج</div></div>
+              <div class="manifest-row"><div class="manifest-dot"></div><div class="manifest-text" style="direction:rtl">فاطمة عمر · منطقة أ · 35 ج</div></div>
+              <div style="margin-top:10px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:6px;padding:6px;text-align:center">
+                <div style="font-size:0.55rem;color:#34d399;font-weight:700">إجمالي: 220 ج</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 8: Driver Flow                                       -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-dark" data-index="7">
+    <div class="z-content w-full" style="max-width:960px">
+      <div class="mb-24 ta-c">
+        <div class="red-pill anim-1 mb-12">Driver Workflow</div>
+        <h2 class="title-md anim-2">From Pickup to Proof of Delivery</h2>
+      </div>
+
+      <div class="flex gap-16 anim-3" style="align-items:stretch">
+        <div class="card flex col gap-10" style="flex:1;padding:24px 20px">
+          <div style="width:46px;height:46px;background:rgba(178,32,37,0.2);border:1px solid rgba(178,32,37,0.4);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:var(--bloom-red-2)">
+            <i class="fa-solid fa-id-card"></i>
+          </div>
+          <div class="title-sm">① Start Shift</div>
+          <div class="body-md">Log in with your passcode. Status flips to <span style="color:#34d399;font-weight:700">Available</span> — branch staff can now assign you orders.</div>
+        </div>
+
+        <div class="card flex col gap-10" style="flex:1;padding:24px 20px">
+          <div style="width:46px;height:46px;background:rgba(245,158,11,0.15);border:1px solid rgba(245,158,11,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#fbbf24">
+            <i class="fa-solid fa-list-check"></i>
+          </div>
+          <div class="title-sm">② View Manifest</div>
+          <div class="body-md">Open your manifest to see all assigned orders — customer info, zone, SLA countdown &amp; cash amount. Updates live as orders are added.</div>
+        </div>
+
+        <div class="card flex col gap-10" style="flex:1;padding:24px 20px">
+          <div style="width:46px;height:46px;background:rgba(59,130,246,0.15);border:1px solid rgba(59,130,246,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#60a5fa">
+            <i class="fa-solid fa-route"></i>
+          </div>
+          <div class="title-sm">③ Deliver</div>
+          <div class="body-md">Navigate to each address. Tap an order to open the status panel — mark it Delivered, Returned, or Postponed with one tap.</div>
+        </div>
+
+        <div class="card flex col gap-10" style="flex:1;padding:24px 20px;border-color:rgba(52,211,153,0.3);background:rgba(52,211,153,0.04)">
+          <div style="width:46px;height:46px;background:rgba(16,185,129,0.15);border:1px solid rgba(16,185,129,0.3);border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:1.2rem;color:#34d399">
+            <i class="fa-solid fa-money-bills"></i>
+          </div>
+          <div class="title-sm" style="color:#34d399">④ Cash Handover</div>
+          <div class="body-md">At end of shift, app shows total cash collected. Hand over the amount — manager sees the same figure in the portal instantly.</div>
+        </div>
+      </div>
+
+      <div class="flex gap-12 mt-20 anim-4">
+        <div class="kpi-box"><div class="kpi-num">≤2s</div><div class="kpi-desc">Status sync to HQ</div></div>
+        <div class="kpi-box"><div class="kpi-num">RTL</div><div class="kpi-desc">Full Arabic UI</div></div>
+        <div class="kpi-box"><div class="kpi-num">∞</div><div class="kpi-desc">Orders per shift</div></div>
+        <div class="kpi-box"><div class="kpi-num">Offline</div><div class="kpi-desc">Works without signal</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 9: Module 3 — Section Title                         -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-section" data-index="8">
+    <div class="z-content flex col center ta-c gap-20">
+      <div class="section-badge anim-1">
+        <i class="fa-solid fa-layer-group"></i>
+        Module 03
+      </div>
+      <div class="big-icon-circle anim-sc">
+        <i class="fa-solid fa-chart-line"></i>
+      </div>
+      <div class="anim-2">
+        <h2 class="title-lg mb-10">The Manager Portal</h2>
+        <p class="body-lg" style="max-width:500px;color:rgba(255,255,255,0.88)">
+          Full operational visibility across all branches.<br>
+          Live KPIs, transfers, driver oversight &amp; financial reconciliation.
+        </p>
+      </div>
+      <div class="flex gap-12 anim-3">
+        <div style="padding:8px 18px;background:rgba(255,255,255,0.12);border-radius:100px;font-size:0.78rem">
+          <i class="fa-solid fa-user-tie" style="margin-right:5px"></i>For Managers
+        </div>
+        <div style="padding:8px 18px;background:rgba(255,255,255,0.12);border-radius:100px;font-size:0.78rem">
+          <i class="fa-solid fa-building" style="margin-right:5px"></i>Multi-Branch
+        </div>
+        <div style="padding:8px 18px;background:rgba(255,255,255,0.12);border-radius:100px;font-size:0.78rem">
+          <i class="fa-solid fa-desktop" style="margin-right:5px"></i>Web Dashboard
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 10: Admin Power                                      -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-content" data-index="9">
+    <div class="z-content w-full" style="max-width:960px">
+      <div class="mb-20">
+        <div class="red-pill anim-1 mb-12">Manager Portal · Features</div>
+        <h2 class="title-md anim-2 mb-10">Complete Operational Control</h2>
+        <div class="red-bar anim-3 mb-20"></div>
+      </div>
+
+      <div class="two-col">
+        <div class="col-left flex col gap-10">
+          <div class="feat-item anim-l1" style="padding:16px 18px">
+            <div class="feat-icon" style="width:42px;height:42px;font-size:1rem"><i class="fa-solid fa-gauge-high"></i></div>
+            <div>
+              <div class="title-sm mb-2">Live KPI Dashboard</div>
+              <div class="body-sm">Orders in progress, delivered, returned, pending — updated in real time. Filter by branch, driver, or date.</div>
+            </div>
+          </div>
+
+          <div class="feat-item anim-l2" style="padding:16px 18px">
+            <div class="feat-icon amber" style="width:42px;height:42px;font-size:1rem"><i class="fa-solid fa-building-columns"></i></div>
+            <div>
+              <div class="title-sm mb-2">Multi-Branch Management</div>
+              <div class="body-sm">Oversee all branches from a single login. Switch branches with one click — no separate accounts needed.</div>
+            </div>
+          </div>
+
+          <div class="feat-item anim-l3" style="padding:16px 18px">
+            <div class="feat-icon blue" style="width:42px;height:42px;font-size:1rem"><i class="fa-solid fa-arrows-rotate"></i></div>
+            <div>
+              <div class="title-sm mb-2">Transfer Approvals</div>
+              <div class="body-sm">Approve or reject driver re-assignments between branches. Full audit trail automatically maintained.</div>
+            </div>
+          </div>
+
+          <div class="feat-item anim-4" style="padding:16px 18px">
+            <div class="feat-icon green" style="width:42px;height:42px;font-size:1rem"><i class="fa-solid fa-money-check-dollar"></i></div>
+            <div>
+              <div class="title-sm mb-2">Financial Reconciliation</div>
+              <div class="body-sm">Cash collected per driver, per shift, per branch. Export CSV reports for accounting in one click.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-right flex col gap-14 anim-sc">
+          <div class="kpi-row">
+            <div class="kpi-box"><div class="kpi-num" style="font-size:1.5rem">Live</div><div class="kpi-desc">Dashboard updates</div></div>
+            <div class="kpi-box"><div class="kpi-num" style="font-size:1.5rem">∞</div><div class="kpi-desc">Branches supported</div></div>
+          </div>
+          <div class="kpi-row">
+            <div class="kpi-box"><div class="kpi-num" style="font-size:1.5rem">100%</div><div class="kpi-desc">Audit trail</div></div>
+            <div class="kpi-box"><div class="kpi-num" style="font-size:1.5rem">CSV</div><div class="kpi-desc">Export reports</div></div>
+          </div>
+
+          <div class="card flex col gap-8" style="padding:20px">
+            <div class="title-sm mb-2" style="font-size:0.85rem">Zone Management</div>
+            <div class="body-sm">Add, rename, price, or deactivate delivery zones from the portal — all Handover apps update <em>instantly</em> via Firebase real-time sync. Zero reload required.</div>
+            <div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+              <div class="pulse-dot"></div>
+              <span style="font-size:0.72rem;color:#34d399;font-family:'Poppins',sans-serif;font-weight:600">Real-time sync active</span>
+            </div>
+          </div>
+
+          <!-- NEW: Salary & Payroll Engine -->
+          <div class="card flex col gap-8" style="padding:20px;border-color:rgba(178,32,37,0.35);background:rgba(178,32,37,0.07)">
+            <div class="flex" style="align-items:center;gap:10px;margin-bottom:2px">
+              <div style="width:34px;height:34px;background:rgba(178,32,37,0.2);border:1px solid rgba(178,32,37,0.4);border-radius:9px;display:flex;align-items:center;justify-content:center;font-size:0.95rem;color:var(--bloom-red-2);flex-shrink:0">
+                <i class="fa-solid fa-calculator"></i>
+              </div>
+              <div class="title-sm" style="font-size:0.85rem;color:white">Automated Salary &amp; Transfer Payroll Engine</div>
+            </div>
+            <div class="body-sm">The portal <strong>automatically aggregates and calculates courier salaries</strong> alongside approved stock transfer movements in real time. Totals adjust dynamically based on whatever <span style="color:#fbbf24;font-weight:600">date-range filter</span> the manager selects — eliminating manual spreadsheet work entirely.</div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px">
+              <span style="font-size:0.65rem;padding:3px 10px;background:rgba(178,32,37,0.15);border:1px solid rgba(178,32,37,0.3);border-radius:100px;color:#ff8a8d;font-family:'Poppins',sans-serif;font-weight:600">Auto-calculated</span>
+              <span style="font-size:0.65rem;padding:3px 10px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:100px;color:#fbbf24;font-family:'Poppins',sans-serif;font-weight:600">Date-range aware</span>
+              <span style="font-size:0.65rem;padding:3px 10px;background:rgba(52,211,153,0.1);border:1px solid rgba(52,211,153,0.3);border-radius:100px;color:#34d399;font-family:'Poppins',sans-serif;font-weight:600">Includes transfers</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 11: Smart Tech                                       -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-tech" data-index="10">
+    <div class="z-content w-full" style="max-width:900px">
+      <div class="ta-c mb-28">
+        <div class="red-pill anim-1 mb-12">Under the Hood</div>
+        <h2 class="title-lg anim-2 mb-10">Engineering for Zero Waste</h2>
+        <p class="body-md anim-3" style="max-width:520px;margin:0 auto">
+          The platform is built for reliability, efficiency, and real-time responsiveness —
+          using Firebase's intelligent push architecture to eliminate unnecessary database reads.
+        </p>
+      </div>
+
+      <div class="flex gap-32 anim-4" style="align-items:center">
+        <!-- Ring -->
+        <div class="flex col center gap-10" style="flex-shrink:0">
+          <div class="tech-ring">
+            <svg viewBox="0 0 180 180">
+              <circle class="tech-ring-bg" cx="90" cy="90" r="80"/>
+              <circle class="tech-ring-fill" cx="90" cy="90" r="80" id="ring-fill"/>
+            </svg>
+            <div class="tech-ring-label">
+              <div class="tech-ring-pct">98%</div>
+              <div class="tech-ring-sub">Reduction</div>
+            </div>
+          </div>
+          <div class="body-sm ta-c" style="max-width:150px">Database reads saved per device per day</div>
+        </div>
+
+        <!-- Bars -->
+        <div class="flex col gap-22" style="flex:1">
+          <div>
+            <div class="flex" style="justify-content:space-between;margin-bottom:6px;align-items:baseline">
+              <div class="title-sm" style="font-size:0.9rem">Before: Polling Every 5 Minutes</div>
+              <div style="font-family:'Poppins',sans-serif;font-size:0.78rem;color:var(--bloom-red-2);font-weight:700">4,800 reads/day</div>
+            </div>
+            <div class="bar-track"><div class="bar-fill red"></div></div>
+            <div class="body-sm mt-4">Each device asks "any zone changes?" every 5 min — even when nothing has changed</div>
+          </div>
+
+          <div>
+            <div class="flex" style="justify-content:space-between;margin-bottom:6px;align-items:baseline">
+              <div class="title-sm" style="font-size:0.9rem">After: Firebase onSnapshot Listener</div>
+              <div style="font-family:'Poppins',sans-serif;font-size:0.78rem;color:#34d399;font-weight:700">~100 reads/day</div>
+            </div>
+            <div class="bar-track"><div class="bar-fill green"></div></div>
+            <div class="body-sm mt-4">One persistent connection — Firebase pushes updates only when data actually changes</div>
+          </div>
+
+          <div class="flex gap-12 mt-4">
+            <div class="card flex col gap-4" style="flex:1;padding:14px;text-align:center;border-color:rgba(52,211,153,0.3)">
+              <div style="font-family:'Poppins',sans-serif;font-size:1.4rem;font-weight:800;color:#34d399">≤1s</div>
+              <div class="body-sm" style="font-size:0.72rem">Zone update propagation</div>
+            </div>
+            <div class="card flex col gap-4" style="flex:1;padding:14px;text-align:center">
+              <div style="font-family:'Poppins',sans-serif;font-size:1.4rem;font-weight:800;color:var(--bloom-red-2)">Offline</div>
+              <div class="body-sm" style="font-size:0.72rem">IndexedDB cache keeps app alive</div>
+            </div>
+            <div class="card flex col gap-4" style="flex:1;padding:14px;text-align:center">
+              <div style="font-family:'Poppins',sans-serif;font-size:1.4rem;font-weight:800;color:#60a5fa">Auto</div>
+              <div class="body-sm" style="font-size:0.72rem">Reconnects after network drop</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ────────────────────────────────────────────────────────── -->
+  <!-- SLIDE 12: Launchpad                                        -->
+  <!-- ────────────────────────────────────────────────────────── -->
+  <section class="slide bg-launch" data-index="11">
+    <div class="z-content w-full" style="max-width:960px">
+      <div class="ta-c mb-28">
+        <div class="flex center mb-16 anim-sc">
+          <img src="https://bloompharmacy.github.io/bloom-delivery/B-big-logo.png"
+               alt="Bloom Pharmacy"
+               style="height:clamp(36px,5vw,52px);width:auto;object-fit:contain;filter:drop-shadow(0 2px 12px rgba(178,32,37,0.3))" />
+        </div>
+        <h2 class="title-lg anim-1 mb-10">You're Ready. Let's Go.</h2>
+        <p class="body-md anim-2" style="max-width:520px;margin:0 auto">
+          Open your application below. Each link opens in a new tab —
+          log in with your assigned passcode and you're live on the platform.
+        </p>
+      </div>
+
+      <div class="flex gap-20 anim-3" style="align-items:stretch">
+        <a href="https://bloompharmacy.github.io/bloom-delivery/handover.html" target="_blank" class="launch-btn staff">
+          <div class="launch-icon staff"><i class="fa-solid fa-barcode"></i></div>
+          <div class="title-sm" style="color:white;margin-top:4px">Handover App</div>
+          <div class="body-sm ta-c" style="color:rgba(255,255,255,0.6)">For branch staff</div>
+          <div class="body-sm ta-c">Scan packages &amp; assign drivers</div>
+          <div class="launch-arrow" style="margin-top:16px"><i class="fa-solid fa-arrow-right"></i></div>
+        </a>
+
+        <a href="https://bloompharmacy.github.io/bloom-delivery/delivery.html" target="_blank" class="launch-btn driver">
+          <div class="launch-icon driver"><i class="fa-solid fa-truck-fast"></i></div>
+          <div class="title-sm" style="color:white;margin-top:4px">Delivery App</div>
+          <div class="body-sm ta-c" style="color:rgba(255,255,255,0.6)">For drivers</div>
+          <div class="body-sm ta-c">Manifest &amp; delivery status updates</div>
+          <div class="launch-arrow" style="margin-top:16px"><i class="fa-solid fa-arrow-right"></i></div>
+        </a>
+
+        <a href="https://bloompharmacy.github.io/bloom-delivery/admin.html" target="_blank" class="launch-btn admin">
+          <div class="launch-icon admin"><i class="fa-solid fa-chart-line"></i></div>
+          <div class="title-sm" style="color:white;margin-top:4px">Manager Portal</div>
+          <div class="body-sm ta-c" style="color:rgba(255,255,255,0.6)">For managers &amp; admins</div>
+          <div class="body-sm ta-c">KPIs, branches &amp; reports</div>
+          <div class="launch-arrow" style="margin-top:16px"><i class="fa-solid fa-arrow-right"></i></div>
+        </a>
+      </div>
+
+      <div class="flex gap-20 mt-24 anim-4" style="justify-content:center;flex-wrap:wrap">
+        <div class="body-sm"><i class="fa-solid fa-shield-check" style="color:var(--bloom-red-2);margin-right:6px"></i>Passcode-protected</div>
+        <div class="body-sm" style="color:rgba(255,255,255,0.15)">·</div>
+        <div class="body-sm"><i class="fa-solid fa-wifi" style="color:var(--bloom-red-2);margin-right:6px"></i>Works offline</div>
+        <div class="body-sm" style="color:rgba(255,255,255,0.15)">·</div>
+        <div class="body-sm"><i class="fa-solid fa-bolt" style="color:var(--bloom-red-2);margin-right:6px"></i>Real-time sync</div>
+        <div class="body-sm" style="color:rgba(255,255,255,0.15)">·</div>
+        <div class="body-sm"><i class="fa-solid fa-mobile-screen" style="color:var(--bloom-red-2);margin-right:6px"></i>Mobile-first design</div>
+      </div>
+    </div>
+
+    <!-- decorative rings -->
+    <div style="position:absolute;width:420px;height:420px;border-radius:50%;border:1px solid rgba(178,32,37,0.07);bottom:-140px;right:-120px;z-index:1;pointer-events:none"></div>
+    <div style="position:absolute;width:260px;height:260px;border-radius:50%;border:1px solid rgba(178,32,37,0.06);top:-70px;left:-70px;z-index:1;pointer-events:none"></div>
+  </section>
+
+</div><!-- /#deck -->
+
+<!-- ── Navigation UI ──────────────────────────────────────────── -->
+<div id="nav-dots"></div>
+<button class="nav-arrow left hidden" id="arrow-left"  onclick="navigate(-1)" aria-label="Previous slide"><i class="fa-solid fa-chevron-left"></i></button>
+<button class="nav-arrow right"       id="arrow-right" onclick="navigate(1)"  aria-label="Next slide"><i class="fa-solid fa-chevron-right"></i></button>
+<div id="slide-counter">1 / 12</div>
+
+<!-- ── Simulator Modal ─────────────────────────────────────────── -->
+<div id="sim-modal" role="dialog" aria-modal="true" aria-label="Live Order Simulator">
+  <div class="sim-header">
+    <div class="sim-title">
+      <i class="fa-solid fa-play-circle" style="color:var(--bloom-red-2);margin-right:8px"></i>
+      Live Order Simulator
+    </div>
+    <div class="sim-sub">Watch an order travel from Handover Staff to Driver Manifest in real time</div>
+  </div>
+
+  <div class="sim-stage" id="sim-stage">
+    <!-- Flying card (sits inside sim-stage for positioning) -->
+    <div id="flying-card">📦 #BLM-2847</div>
+
+    <!-- Staff Phone -->
+    <div class="phone-wrap">
+      <div class="phone-label"><i class="fa-solid fa-barcode" style="margin-right:4px;color:var(--bloom-red-2)"></i>Handover App</div>
+      <div class="phone" id="phone-staff">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div class="phone-scan-area" id="scan-area">
+            <div class="phone-barcode-icon"><i class="fa-solid fa-barcode"></i></div>
+            <div class="phone-barcode-text" id="scan-text">Ready to scan…</div>
+            <div id="scan-line" style="display:none;position:absolute;left:8px;right:8px;height:2px;background:rgba(178,32,37,0.9);box-shadow:0 0 6px rgba(178,32,37,0.7);border-radius:1px;animation:scanLine 1.1s ease-in-out infinite;top:40%"></div>
+          </div>
+          <div class="phone-order-card" id="order-card-staff" style="display:none;margin-top:8px">
+            <div class="phone-order-id">#BLM-2847</div>
+            <div style="font-size:0.55rem;color:rgba(255,255,255,0.6)">Ahmed · Zone A · 45 EGP</div>
+            <div style="font-size:0.55rem;color:#34d399;margin-top:3px;font-weight:600">✓ Dispatched to Driver</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Arrow / Track -->
+    <div class="sim-arrow-area">
+      <div style="font-size:0.65rem;color:var(--bloom-muted);font-family:'Poppins',sans-serif;font-weight:600;text-transform:uppercase;letter-spacing:0.1em">Firebase</div>
+      <div class="sim-arrow-track">
+        <div class="sim-arrow-fill" id="sim-track"></div>
+      </div>
+      <i class="fa-solid fa-bolt" style="color:rgba(178,32,37,0.5);font-size:1rem"></i>
+      <div class="body-sm" id="sim-latency" style="font-size:0.65rem;visibility:hidden">✓ ≤ 1s</div>
+    </div>
+
+    <!-- Driver Phone -->
+    <div class="phone-wrap">
+      <div class="phone-label"><i class="fa-solid fa-truck-fast" style="margin-right:4px;color:#60a5fa"></i>Driver Manifest</div>
+      <div class="phone" id="phone-driver">
+        <div class="phone-notch"></div>
+        <div class="phone-screen">
+          <div style="font-size:0.58rem;color:var(--bloom-red-2);font-weight:700;margin-bottom:8px;font-family:'Poppins',sans-serif;text-align:right">قائمة التوصيل</div>
+          <div class="manifest-row"><div class="manifest-dot active"></div><div class="manifest-text" style="direction:rtl">سارة علي · ب · 80 ج</div></div>
+          <div class="manifest-row"><div class="manifest-dot active"></div><div class="manifest-text" style="direction:rtl">محمد حسن · ج · 60 ج</div></div>
+          <div class="manifest-row" id="new-order-row" style="display:none">
+            <div class="manifest-dot new-pulse" id="new-dot"></div>
+            <div class="manifest-text" style="direction:rtl;color:#34d399;font-weight:700">أحمد · أ · 45 ج ✓</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div><!-- /#sim-stage -->
+
+  <div class="sim-status" id="sim-status">Press "Send Order" to start the simulation</div>
+
+  <div class="sim-controls">
+    <button class="sim-btn primary" id="sim-run-btn" onclick="runSimulator()">
+      <i class="fa-solid fa-paper-plane"></i> Send Order
+    </button>
+    <button class="sim-btn secondary" id="sim-reset-btn" onclick="resetSimulator()" style="display:none">
+      <i class="fa-solid fa-rotate-left"></i> Reset
+    </button>
+    <button class="sim-btn secondary" onclick="closeSimulator()">
+      <i class="fa-solid fa-xmark"></i> Close
+    </button>
+  </div>
+</div><!-- /#sim-modal -->
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   SLIDE NAVIGATION
+═══════════════════════════════════════════════════════════════ */
+const TOTAL   = 12;
+let   current = 0;
+let   animating = false;
+
+const slides  = Array.from(document.querySelectorAll('.slide'));
+const dotsWrap= document.getElementById('nav-dots');
+const arrowL  = document.getElementById('arrow-left');
+const arrowR  = document.getElementById('arrow-right');
+const counter = document.getElementById('slide-counter');
+
+// Build nav dots
+slides.forEach((_, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'dot' + (i === 0 ? ' active' : '');
+  btn.setAttribute('aria-label', `Slide ${i + 1}`);
+  btn.addEventListener('click', () => goTo(i));
+  dotsWrap.appendChild(btn);
+});
+
+function goTo(idx) {
+  if (animating || idx === current || idx < 0 || idx >= TOTAL) return;
+  animating = true;
+
+  const prevSlide = slides[current];
+  const nextSlide = slides[idx];
+  const forward   = idx > current;
+
+  // Exit current slide
+  prevSlide.classList.add(forward ? 'exit-left' : 'exit-right');
+  prevSlide.classList.remove('active');
+
+  // Prepare next slide off-screen
+  nextSlide.style.transition = 'none';
+  nextSlide.style.transform  = forward ? 'translateX(70px)' : 'translateX(-70px)';
+  nextSlide.style.opacity    = '0';
+  nextSlide.classList.add('active');
+
+  // Force reflow, then animate in
+  nextSlide.getBoundingClientRect();
+  nextSlide.style.transition = 'opacity 580ms cubic-bezier(0.77,0,0.175,1), transform 580ms cubic-bezier(0.77,0,0.175,1)';
+  nextSlide.style.transform  = 'translateX(0)';
+  nextSlide.style.opacity    = '1';
+
+  setTimeout(() => {
+    prevSlide.classList.remove('exit-left', 'exit-right');
+    prevSlide.style.cssText = '';
+    nextSlide.style.cssText = '';
+    animating = false;
+    onSlideEnter(idx);
+  }, 600);
+
+  current = idx;
+  document.querySelectorAll('.dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+  arrowL.classList.toggle('hidden', idx === 0);
+  arrowR.classList.toggle('hidden', idx === TOTAL - 1);
+  counter.textContent = `${idx + 1} / ${TOTAL}`;
+}
+
+function navigate(dir) { goTo(current + dir); }
+
+/* ── Keyboard navigation ─────────────────────────────────────── */
+document.addEventListener('keydown', e => {
+  if (document.getElementById('sim-modal').classList.contains('open')) {
+    if (e.key === 'Escape') closeSimulator();
+    return;
+  }
+  if (e.key === 'ArrowRight' || e.key === ' ')  { e.preventDefault(); navigate(1); }
+  if (e.key === 'ArrowLeft')                    { e.preventDefault(); navigate(-1); }
+});
+
+/* ── Touch swipe ─────────────────────────────────────────────── */
+let touchX = 0;
+document.addEventListener('touchstart', e => { touchX = e.touches[0].clientX; }, { passive: true });
+document.addEventListener('touchend',   e => {
+  const dx = e.changedTouches[0].clientX - touchX;
+  if (Math.abs(dx) > 48) navigate(dx < 0 ? 1 : -1);
+}, { passive: true });
+
+/* ── Slide-specific on-enter hooks ──────────────────────────── */
+function onSlideEnter(idx) {
+  // Slide 11 (index 10): animate the SVG ring
+  if (idx === 10) {
+    setTimeout(() => {
+      document.getElementById('ring-fill').classList.add('animated');
+    }, 350);
+  } else {
+    document.getElementById('ring-fill').classList.remove('animated');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   LIVE ORDER SIMULATOR
+═══════════════════════════════════════════════════════════════ */
+let simBusy = false;
+
+function openSimulator() {
+  document.getElementById('sim-modal').classList.add('open');
+  resetSimulator();
+}
+
+function closeSimulator() {
+  document.getElementById('sim-modal').classList.remove('open');
+  resetSimulator();
+}
+
+function resetSimulator() {
+  simBusy = false;
+
+  // Scan area
+  const scanArea = document.getElementById('scan-area');
+  scanArea.style.borderColor = 'rgba(178,32,37,0.4)';
+  document.getElementById('scan-text').textContent = 'Ready to scan…';
+  document.getElementById('scan-line').style.display = 'none';
+  document.getElementById('order-card-staff').style.display = 'none';
+
+  // Track
+  document.getElementById('sim-track').classList.remove('filled');
+  document.getElementById('sim-latency').style.visibility = 'hidden';
+
+  // Driver manifest
+  document.getElementById('new-order-row').style.display = 'none';
+
+  // Flying card
+  const fc = document.getElementById('flying-card');
+  fc.style.cssText = 'opacity:0;position:absolute;';
+
+  // Status
+  const st = document.getElementById('sim-status');
+  st.textContent = 'Press "Send Order" to start the simulation';
+  st.className = 'sim-status';
+
+  // Buttons
+  document.getElementById('sim-run-btn').style.display   = '';
+  document.getElementById('sim-run-btn').disabled        = false;
+  document.getElementById('sim-reset-btn').style.display = 'none';
+}
+
+async function runSimulator() {
+  if (simBusy) return;
+  simBusy = true;
+  document.getElementById('sim-run-btn').disabled = true;
+
+  const st       = document.getElementById('sim-status');
+  const scanArea = document.getElementById('scan-area');
+
+  /* ── Phase 1: Scanning ── */
+  st.textContent = 'Scanning barcode…';  st.className = 'sim-status go';
+  document.getElementById('scan-line').style.display = 'block';
+  scanArea.style.borderColor = 'rgba(178,32,37,0.8)';
+  await wait(1500);
+
+  /* ── Phase 2: Barcode matched ── */
+  document.getElementById('scan-line').style.display = 'none';
+  document.getElementById('scan-text').textContent = '#BLM-2847  ✓';
+  scanArea.style.borderColor = 'rgba(52,211,153,0.7)';
+  st.textContent = 'Package verified — dispatching via Firebase…';
+  await wait(700);
+
+  /* ── Phase 3: Fly the card across ── */
+  st.textContent = 'Pushing update to driver in real-time…';
+
+  const stage    = document.getElementById('sim-stage');
+  const staffEl  = document.getElementById('phone-staff');
+  const driverEl = document.getElementById('phone-driver');
+  const fc       = document.getElementById('flying-card');
+
+  const stageR  = stage.getBoundingClientRect();
+  const staffR  = staffEl.getBoundingClientRect();
+  const driverR = driverEl.getBoundingClientRect();
+
+  const startX = staffR.left  + staffR.width/2  - stageR.left - 45;
+  const startY = staffR.top   + staffR.height/2 - stageR.top  - 14;
+  const endX   = driverR.left + driverR.width/2 - stageR.left - 45;
+  const endY   = driverR.top  + driverR.height/2- stageR.top  - 14;
+
+  const dx = endX - startX;
+  const dy = endY - startY;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+
+  fc.style.cssText = `
+    position: absolute;
+    left: ${startX}px;
+    top: ${startY}px;
+    opacity: 0;
+    transition: none;
+  `;
+  fc.getBoundingClientRect(); // reflow
+
+  // Animate with JS for cross-browser reliability
+  const duration = 1600;
+  const start = performance.now();
+
+  function flyStep(now) {
+    const t = Math.min((now - start) / duration, 1);
+    // ease: cubic in-out
+    const e = t < 0.5 ? 4*t*t*t : 1 - Math.pow(-2*t+2,3)/2;
+    // arc: lift then drop
+    const arc = Math.sin(Math.PI * t) * -30;
+
+    const x = startX + dx * e;
+    const y = startY + dy * e + arc;
+    const scale = 0.8 + 0.4 * Math.sin(Math.PI * t);
+    const opacity = t < 0.1 ? t/0.1 : t > 0.9 ? (1-t)/0.1 : 1;
+    const rot = Math.sin(Math.PI * t) * 6;
+
+    fc.style.cssText = `
+      position: absolute;
+      left: ${x}px; top: ${y}px;
+      opacity: ${opacity};
+      transform: scale(${scale}) rotate(${rot}deg);
+    `;
+
+    if (t < 0.3) document.getElementById('sim-track').classList.add('filled');
+
+    if (t < 1) {
+      requestAnimationFrame(flyStep);
+    } else {
+      fc.style.opacity = '0';
+      afterFly();
+    }
+  }
+  requestAnimationFrame(flyStep);
+
+  async function afterFly() {
+    /* ── Phase 4: Driver receives order ── */
+    await wait(100);
+    document.getElementById('new-order-row').style.display = 'flex';
+    document.getElementById('order-card-staff').style.display = 'block';
+    document.getElementById('sim-latency').style.visibility = 'visible';
+
+    st.textContent  = '✓ Order received on driver manifest!';
+    st.style.color  = '#34d399';
+
+    document.getElementById('sim-run-btn').style.display   = 'none';
+    document.getElementById('sim-reset-btn').style.display = '';
+    simBusy = false;
+  }
+}
+
+function wait(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+/* Click outside modal to close */
+document.getElementById('sim-modal').addEventListener('click', function(e) {
+  if (e.target === this) closeSimulator();
+});
+
+/* Init */
+counter.textContent = `1 / ${TOTAL}`;
+</script>
+</body>
+</html>
