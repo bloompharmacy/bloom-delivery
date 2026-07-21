@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bloom Delivery Platform — Business Pitch</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700;800;900&family=Lato:wght@300;400;700&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" />
+<style>
+/* ── Reset & Base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { width: 100%; height: 100%; overflow: hidden; background: #0d0d1a; }
+
+:root {
+  --bloom-red:    #b22025;
+  --bloom-red-2:  #d4282e;
+  --bloom-dark:   #1a1a2e;
+  --bloom-darker: #0d0d1a;
+  --bloom-white:  #ffffff;
+  --bloom-off:    #f4f4f8;
+  --bloom-muted:  #a0a0b8;
+  --bloom-card:   rgba(255,255,255,0.06);
+  --bloom-border: rgba(255,255,255,0.1);
+  --bloom-green:  #34d399;
+  --bloom-amber:  #fbbf24;
+  --shadow-red:   0 0 40px rgba(178,32,37,0.4);
+  --transition:   600ms cubic-bezier(0.77, 0, 0.175, 1);
+}
+
+/* ── Deck ──────────────────────────────────────────────────────── */
+#deck {
+  position: fixed; inset: 0;
+  font-family: 'Lato', sans-serif;
+  color: var(--bloom-white);
+  overflow: hidden;
+}
+
+.slide {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; align-items: center;
+  padding: 0 64px;
+  opacity: 0; pointer-events: none;
+  transform: translateX(60px);
+  transition: opacity var(--transition), transform var(--transition);
+  overflow: hidden;
+}
+.slide.active {
+  opacity: 1; pointer-events: auto; transform: translateX(0);
+  overflow-y: auto; overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+}
+.slide.exit-left  { opacity: 0; transform: translateX(-60px); overflow: hidden; }
+.slide.exit-right { opacity: 0; transform: translateX(60px);  overflow: hidden; }
+
+.slide > .z-content {
+  margin-top: auto; margin-bottom: auto;
+  padding-top: 48px; padding-bottom: 96px;
+  width: 100%; flex-shrink: 0;
+  position: relative; z-index: 2;
+}
+
+/* ── Backgrounds ───────────────────────────────────────────────── */
+.bg-dark    { background: var(--bloom-dark); }
+.bg-hero    { background: linear-gradient(135deg, var(--bloom-darker) 0%, #1a0a0b 40%, var(--bloom-dark) 100%); }
+.bg-section { background: linear-gradient(135deg, var(--bloom-red) 0%, #7a1015 60%, var(--bloom-darker) 100%); }
+.bg-content { background: #12122a; }
+.bg-tech    { background: linear-gradient(135deg, #0d0d1a 0%, #1a1a2e 50%, #0a0d20 100%); }
+.bg-launch  { background: linear-gradient(160deg, #0d0d1a 0%, #1a0505 50%, #0d0d1a 100%); }
+
+.slide::before { content: ''; position: absolute; inset: 0; pointer-events: none; z-index: 0; }
+.bg-hero::before {
+  background:
+    radial-gradient(ellipse 60% 50% at 80% 30%, rgba(178,32,37,0.25) 0%, transparent 70%),
+    radial-gradient(ellipse 40% 40% at 10% 80%, rgba(178,32,37,0.12) 0%, transparent 70%);
+}
+.bg-dark::before, .bg-content::before, .bg-tech::before, .bg-launch::before {
+  background: radial-gradient(ellipse 50% 60% at 90% 10%, rgba(178,32,37,0.12) 0%, transparent 60%);
+}
+.bg-section::before {
+  background: radial-gradient(ellipse 70% 70% at 50% 50%, rgba(255,255,255,0.06) 0%, transparent 70%);
+}
+
+/* ── Typography ────────────────────────────────────────────────── */
+.title-xl { font-family:'Poppins',sans-serif; font-weight:900; font-size:clamp(2.1rem,5.2vw,4rem); line-height:1.08; letter-spacing:-0.02em; }
+.title-lg { font-family:'Poppins',sans-serif; font-weight:800; font-size:clamp(1.6rem,3.6vw,2.6rem); line-height:1.15; letter-spacing:-0.015em; }
+.title-md { font-family:'Poppins',sans-serif; font-weight:700; font-size:clamp(1.15rem,2.2vw,1.5rem); line-height:1.25; }
+.title-sm { font-family:'Poppins',sans-serif; font-weight:700; font-size:clamp(0.98rem,1.5vw,1.12rem); line-height:1.3; }
+.body-lg  { font-size:clamp(0.98rem,1.6vw,1.18rem); line-height:1.65; color:var(--bloom-off); font-weight:300; }
+.body-md  { font-size:clamp(0.86rem,1.25vw,0.97rem); line-height:1.6; color:var(--bloom-muted); }
+.body-sm  { font-size:clamp(0.76rem,1.05vw,0.85rem); line-height:1.55; color:var(--bloom-muted); }
+.text-red   { color: var(--bloom-red-2); }
+.text-green { color: var(--bloom-green); }
+.text-white { color: var(--bloom-white); }
+
+/* ── Bits ──────────────────────────────────────────────────────── */
+.red-pill {
+  display:inline-flex; align-items:center; gap:8px;
+  background: rgba(178,32,37,0.16);
+  border: 1px solid rgba(178,32,37,0.4);
+  color: #ff7b80;
+  padding: 7px 16px; border-radius: 100px;
+  font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em;
+}
+.green-pill {
+  display:inline-flex; align-items:center; gap:8px;
+  background: rgba(52,211,153,0.13);
+  border: 1px solid rgba(52,211,153,0.38);
+  color: var(--bloom-green);
+  padding: 7px 16px; border-radius: 100px;
+  font-size: 0.72rem; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.12em;
+}
+.card {
+  background: var(--bloom-card);
+  border: 1px solid var(--bloom-border);
+  border-radius: 20px; padding: 26px 22px;
+  backdrop-filter: blur(10px);
+}
+.card-hover { transition: transform .3s, border-color .3s, background .3s; }
+.card-hover:hover { transform: translateY(-5px); border-color: rgba(178,32,37,0.45); background: rgba(255,255,255,0.09); }
+
+.icon-circle {
+  width: 52px; height: 52px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.25rem; flex-shrink: 0;
+}
+.ic-red    { background: rgba(178,32,37,0.18);  color:#ff7b80;         border:1px solid rgba(178,32,37,0.35); }
+.ic-green  { background: rgba(52,211,153,0.14); color:var(--bloom-green); border:1px solid rgba(52,211,153,0.32); }
+.ic-amber  { background: rgba(251,191,36,0.13); color:var(--bloom-amber); border:1px solid rgba(251,191,36,0.30); }
+.ic-blue   { background: rgba(96,165,250,0.13); color:#60a5fa;         border:1px solid rgba(96,165,250,0.30); }
+
+/* Layout helpers */
+.flex   { display:flex; }
+.col    { flex-direction: column; }
+.center { align-items:center; justify-content:center; }
+.ta-c   { text-align:center; }
+.w-full { width:100%; }
+.grid-2 { display:grid; grid-template-columns:repeat(2,1fr); gap:18px; }
+.grid-3 { display:grid; grid-template-columns:repeat(3,1fr); gap:18px; }
+.grid-4 { display:grid; grid-template-columns:repeat(4,1fr); gap:14px; }
+.gap-14 { gap:14px; } .gap-20 { gap:20px; }
+.mb-8{margin-bottom:8px}.mb-10{margin-bottom:10px}.mb-14{margin-bottom:14px}
+.mb-16{margin-bottom:16px}.mb-20{margin-bottom:20px}.mb-28{margin-bottom:28px}.mb-36{margin-bottom:36px}
+.mt-auto { margin-top:auto; }
+.mx-auto { margin-left:auto; margin-right:auto; }
+
+/* Problem / pain list */
+.pain-item {
+  display:flex; align-items:flex-start; gap:14px;
+  background: rgba(178,32,37,0.07);
+  border: 1px solid rgba(178,32,37,0.22);
+  border-left: 3px solid var(--bloom-red-2);
+  border-radius: 14px; padding: 15px 18px;
+}
+.win-item {
+  display:flex; align-items:flex-start; gap:14px;
+  background: rgba(52,211,153,0.06);
+  border: 1px solid rgba(52,211,153,0.22);
+  border-left: 3px solid var(--bloom-green);
+  border-radius: 14px; padding: 15px 18px;
+}
+
+/* App cards */
+.app-card {
+  display:flex; flex-direction:column; gap:10px;
+  background: var(--bloom-card);
+  border: 1px solid var(--bloom-border);
+  border-radius: 20px; padding: 24px 20px;
+  transition: transform .3s, border-color .3s;
+}
+.app-card:hover { transform: translateY(-6px); border-color: rgba(178,32,37,0.45); }
+
+/* Flow steps */
+.step {
+  display:flex; align-items:center; gap:16px;
+  background: var(--bloom-card);
+  border: 1px solid var(--bloom-border);
+  border-radius: 16px; padding: 14px 18px;
+}
+.step-num {
+  width:34px; height:34px; border-radius:10px; flex-shrink:0;
+  background: linear-gradient(135deg, var(--bloom-red), var(--bloom-red-2));
+  display:flex; align-items:center; justify-content:center;
+  font-family:'Poppins',sans-serif; font-weight:800; font-size:0.9rem;
+}
+
+/* Timeline */
+.tl-item { position:relative; padding-left:34px; padding-bottom:26px; }
+.tl-item:last-child { padding-bottom:0; }
+.tl-item::before {
+  content:''; position:absolute; left:0; top:5px;
+  width:14px; height:14px; border-radius:50%;
+  background: var(--bloom-dark); border:3px solid var(--bloom-red-2);
+}
+.tl-item.done::before { border-color: var(--bloom-green); }
+.tl-item::after {
+  content:''; position:absolute; left:6px; top:19px; bottom:0;
+  width:2px; background: linear-gradient(180deg, rgba(178,32,37,0.5), rgba(178,32,37,0.05));
+}
+.tl-item:last-child::after { display:none; }
+
+/* Stat box */
+.stat-box { text-align:center; padding:18px 12px; }
+.stat-num { font-family:'Poppins',sans-serif; font-weight:900; font-size:clamp(1.6rem,3.2vw,2.4rem); color:var(--bloom-red-2); line-height:1; }
+.stat-lbl { font-size:0.68rem; text-transform:uppercase; letter-spacing:0.1em; color:var(--bloom-muted); margin-top:6px; }
+
+/* ── Navigation ────────────────────────────────────────────────── */
+#nav-dots {
+  position: fixed; bottom: 26px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 9px; z-index: 100;
+  background: rgba(13,13,26,0.6); padding: 10px 16px; border-radius: 100px;
+  backdrop-filter: blur(12px); border: 1px solid var(--bloom-border);
+}
+.dot { width:8px; height:8px; border-radius:100px; background:rgba(255,255,255,0.2); border:none; cursor:pointer; transition:all .3s; padding:0; }
+.dot.active { width:28px; background: var(--bloom-red-2); }
+.dot:hover:not(.active) { background: rgba(255,255,255,0.45); }
+
+.nav-arrow {
+  position: fixed; top: 50%; z-index: 100; transform: translateY(-50%);
+  width: 48px; height: 48px; border-radius: 50%;
+  background: rgba(255,255,255,0.06); border: 1px solid var(--bloom-border);
+  color: var(--bloom-white); cursor: pointer; font-size: 1rem;
+  display:flex; align-items:center; justify-content:center;
+  backdrop-filter: blur(10px); transition: all .3s;
+}
+.nav-arrow:hover { background: var(--bloom-red); border-color: var(--bloom-red-2); }
+.nav-arrow:disabled { opacity:.25; cursor:default; }
+.nav-arrow:disabled:hover { background: rgba(255,255,255,0.06); border-color: var(--bloom-border); }
+#prev-btn { left: 20px; } #next-btn { right: 20px; }
+
+#counter {
+  position: fixed; top: 22px; right: 24px; z-index: 100;
+  font-size: 0.76rem; letter-spacing: 0.1em; color: var(--bloom-muted);
+  background: rgba(13,13,26,0.6); padding: 7px 14px; border-radius: 100px;
+  backdrop-filter: blur(12px); border: 1px solid var(--bloom-border);
+}
+#brand-mark {
+  position: fixed; top: 22px; left: 24px; z-index: 100;
+  display:flex; align-items:center; gap:9px;
+  font-family:'Poppins',sans-serif; font-weight:700; font-size:0.8rem;
+  color: var(--bloom-muted); letter-spacing:0.04em;
+}
+#brand-mark img { height:26px; width:auto; object-fit:contain; }
+
+/* ── Animations ────────────────────────────────────────────────── */
+@keyframes fadeUp { from { opacity:0; transform: translateY(22px); } to { opacity:1; transform:none; } }
+@keyframes scaleIn { from { opacity:0; transform: scale(.88); } to { opacity:1; transform:none; } }
+.slide .anim-1,.slide .anim-2,.slide .anim-3,.slide .anim-4,.slide .anim-5,.slide .anim-sc { opacity:0; }
+.slide.active .anim-1  { animation: fadeUp .6s .08s both; }
+.slide.active .anim-2  { animation: fadeUp .6s .20s both; }
+.slide.active .anim-3  { animation: fadeUp .6s .32s both; }
+.slide.active .anim-4  { animation: fadeUp .6s .44s both; }
+.slide.active .anim-5  { animation: fadeUp .6s .56s both; }
+.slide.active .anim-sc { animation: scaleIn .7s .05s both; }
+
+/* ── Responsive ────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .slide { padding: 0 26px; }
+  .grid-3, .grid-4 { grid-template-columns: repeat(2,1fr); }
+  #prev-btn, #next-btn { display:none; }
+}
+@media (max-width: 600px) {
+  .slide { padding: 0 18px; }
+  .slide > .z-content { padding-top: 64px; padding-bottom: 88px; }
+  .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; gap:12px; }
+  .card { padding: 16px 15px; border-radius: 15px; }
+  .app-card { padding: 17px 15px; }
+  .icon-circle { width:44px; height:44px; font-size:1.05rem; border-radius:12px; }
+  .step { padding: 11px 13px; gap:12px; }
+  #brand-mark span { display:none; }
+  #counter { top:18px; right:16px; font-size:0.7rem; }
+  .dot { width:7px; height:7px; } .dot.active { width:20px; }
+  .stat-box { padding: 12px 8px; }
+}
+</style>
+</head>
+<body>
+
+<div id="brand-mark">
+  <img src="https://bloompharmacy.github.io/bloom-delivery/B-big-logo.png" alt="Bloom Pharmacy" />
+  <span>Bloom Delivery</span>
+</div>
+<div id="counter">1 / 11</div>
+
+<div id="deck">
+
+  <!-- ══ SLIDE 1 — HERO ══════════════════════════════════════════ -->
+  <section class="slide bg-hero active" data-index="0">
+    <div class="z-content flex col center ta-c mx-auto" style="max-width:840px">
+      <div class="flex center mb-28 anim-sc">
+        <img src="https://bloompharmacy.github.io/bloom-delivery/B-big-logo.png"
+             alt="Bloom Pharmacy"
+             style="height:clamp(56px,8vw,96px);width:auto;object-fit:contain;filter:drop-shadow(0 4px 24px rgba(178,32,37,0.35))" />
+      </div>
+
+      <div class="red-pill anim-1 mb-16">
+        <i class="fa-solid fa-circle-dot" style="font-size:0.55rem"></i>
+        Business Overview
+      </div>
+
+      <h1 class="title-xl anim-2 mb-16">
+        Every Order.<br>
+        <span class="text-red">Tracked, Timed &amp; Accounted For.</span>
+      </h1>
+
+      <p class="body-lg anim-3 mb-36 mx-auto" style="max-width:600px">
+        How Bloom Pharmacy replaced paper, phone calls and spreadsheets with a
+        single delivery platform — built in-house, running live today.
+      </p>
+
+      <div class="grid-3 anim-4 w-full" style="max-width:520px">
+        <div class="card stat-box">
+          <div class="stat-num">3</div>
+          <div class="stat-lbl">Connected Apps</div>
+        </div>
+        <div class="card stat-box">
+          <div class="stat-num">1</div>
+          <div class="stat-lbl">Live Database</div>
+        </div>
+        <div class="card stat-box">
+          <div class="stat-num">24/7</div>
+          <div class="stat-lbl">Automated</div>
+        </div>
+      </div>
+    </div>
+
+    <div style="position:absolute;width:320px;height:320px;border-radius:50%;border:1px solid rgba(178,32,37,0.12);top:-80px;right:-100px;z-index:1;pointer-events:none"></div>
+    <div style="position:absolute;width:500px;height:500px;border-radius:50%;border:1px solid rgba(178,32,37,0.05);bottom:-200px;right:-160px;z-index:1;pointer-events:none"></div>
+  </section>
+
+  <!-- ══ SLIDE 2 — SECTION: THE PROBLEM ══════════════════════════ -->
+  <section class="slide bg-section" data-index="1">
+    <div class="z-content flex col center ta-c mx-auto" style="max-width:760px">
+      <div class="anim-sc mb-20">
+        <div class="icon-circle ic-red mx-auto" style="width:78px;height:78px;font-size:1.9rem;background:rgba(255,255,255,0.12);border-color:rgba(255,255,255,0.25);color:#fff">
+          <i class="fa-solid fa-triangle-exclamation"></i>
+        </div>
+      </div>
+      <div class="red-pill anim-1 mb-14" style="background:rgba(255,255,255,0.14);border-color:rgba(255,255,255,0.3);color:#fff">Part One</div>
+      <h2 class="title-xl anim-2 mb-16">The Problem</h2>
+      <p class="body-lg anim-3 mx-auto" style="max-width:560px">
+        Before the platform, every delivery depended on memory, paper and
+        phone calls — and nobody could answer a simple question with confidence:
+        <em>"Where is that order right now?"</em>
+      </p>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 3 — THE DAILY PAIN ════════════════════════════════ -->
+  <section class="slide bg-dark" data-index="2">
+    <div class="z-content mx-auto" style="max-width:1000px">
+      <div class="ta-c mb-28">
+        <div class="red-pill anim-1 mb-14">Daily Reality</div>
+        <h2 class="title-lg anim-2 mb-10">What Every Branch Was Living With</h2>
+        <p class="body-md anim-3 mx-auto" style="max-width:540px">
+          These weren't occasional issues — they were the normal working day.
+        </p>
+      </div>
+
+      <div class="grid-2 anim-4">
+        <div class="pain-item">
+          <div class="icon-circle ic-red" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-box-open"></i></div>
+          <div>
+            <div class="title-sm mb-8">Orders Went Missing</div>
+            <div class="body-sm">A package handed to a driver with no record. No proof of who took it, when, or where it went.</div>
+          </div>
+        </div>
+        <div class="pain-item">
+          <div class="icon-circle ic-red" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-phone-volume"></i></div>
+          <div>
+            <div class="title-sm mb-8">"Where Is My Order?"</div>
+            <div class="body-sm">Customer calls the branch. The branch calls the driver. The driver is mid-route. Everyone waits.</div>
+          </div>
+        </div>
+        <div class="pain-item">
+          <div class="icon-circle ic-red" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-clock-rotate-left"></i></div>
+          <div>
+            <div class="title-sm mb-8">No Real Numbers Until Later</div>
+            <div class="body-sm">Daily totals were assembled by hand at the end of the day — too late to actually manage anything.</div>
+          </div>
+        </div>
+        <div class="pain-item">
+          <div class="icon-circle ic-red" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-money-bill-transfer"></i></div>
+          <div>
+            <div class="title-sm mb-8">Money Disputes</div>
+            <div class="body-sm">Delivery fees, driver payouts and returned orders argued from memory, with no shared record to settle it.</div>
+          </div>
+        </div>
+        <div class="pain-item">
+          <div class="icon-circle ic-red" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-copy"></i></div>
+          <div>
+            <div class="title-sm mb-8">The Same Order, Twice</div>
+            <div class="body-sm">Nothing stopped one order being handed out two times — wasted trips and double-counted revenue.</div>
+          </div>
+        </div>
+        <div class="pain-item">
+          <div class="icon-circle ic-red" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-eye-slash"></i></div>
+          <div>
+            <div class="title-sm mb-8">No View Across Branches</div>
+            <div class="body-sm">Each branch was an island. Comparing performance meant collecting numbers by phone.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 4 — SECTION: THE SOLUTION ═════════════════════════ -->
+  <section class="slide bg-section" data-index="3">
+    <div class="z-content flex col center ta-c mx-auto" style="max-width:760px">
+      <div class="anim-sc mb-20">
+        <div class="icon-circle mx-auto" style="width:78px;height:78px;font-size:1.9rem;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff">
+          <i class="fa-solid fa-layer-group"></i>
+        </div>
+      </div>
+      <div class="red-pill anim-1 mb-14" style="background:rgba(255,255,255,0.14);border-color:rgba(255,255,255,0.3);color:#fff">Part Two</div>
+      <h2 class="title-xl anim-2 mb-16">The Solution</h2>
+      <p class="body-lg anim-3 mx-auto" style="max-width:560px">
+        Three simple apps — one for each person in the chain — all writing to
+        one shared, live record of every order.
+      </p>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 5 — THREE APPS ════════════════════════════════════ -->
+  <section class="slide bg-content" data-index="4">
+    <div class="z-content mx-auto" style="max-width:1040px">
+      <div class="ta-c mb-28">
+        <div class="red-pill anim-1 mb-14">The Platform</div>
+        <h2 class="title-lg anim-2 mb-10">Three Apps. One Shared Truth.</h2>
+        <p class="body-md anim-3 mx-auto" style="max-width:560px">
+          Each person sees only what they need — and every action updates the same live record instantly.
+        </p>
+      </div>
+
+      <div class="grid-3 anim-4">
+        <div class="app-card">
+          <div class="icon-circle ic-red"><i class="fa-solid fa-barcode"></i></div>
+          <div class="title-md text-white">The Handover App</div>
+          <div class="red-pill" style="align-self:flex-start;font-size:0.62rem">Branch Staff</div>
+          <div class="body-sm">
+            Staff scan each package at the counter, choose the delivery zone,
+            and assign it to a driver. The order is registered the moment it
+            leaves the branch — with a name, a time and a price attached.
+          </div>
+        </div>
+
+        <div class="app-card">
+          <div class="icon-circle ic-green"><i class="fa-solid fa-truck-fast"></i></div>
+          <div class="title-md text-white">The Driver App</div>
+          <div class="green-pill" style="align-self:flex-start;font-size:0.62rem">Drivers · Arabic</div>
+          <div class="body-sm">
+            Drivers open their phone and see the orders assigned to them
+            appear automatically. They confirm the outcome — delivered,
+            partially delivered or returned — and record the payment taken.
+          </div>
+        </div>
+
+        <div class="app-card">
+          <div class="icon-circle ic-amber"><i class="fa-solid fa-chart-line"></i></div>
+          <div class="title-md text-white">The Manager Dashboard</div>
+          <div class="red-pill" style="align-self:flex-start;font-size:0.62rem;background:rgba(251,191,36,0.13);border-color:rgba(251,191,36,0.3);color:var(--bloom-amber)">Managers</div>
+          <div class="body-sm">
+            Managers see live numbers across every branch — revenue, delivery
+            times, driver performance — approve returns, settle transfers, and
+            export finance-ready reports.
+          </div>
+        </div>
+      </div>
+
+      <div class="card anim-5" style="margin-top:22px;display:flex;align-items:center;gap:16px;padding:18px 22px">
+        <div class="icon-circle ic-blue" style="width:44px;height:44px;font-size:1.05rem"><i class="fa-solid fa-database"></i></div>
+        <div>
+          <div class="title-sm mb-8">All three connect to one live database</div>
+          <div class="body-sm">When the driver taps "Delivered," the manager's dashboard reflects it — no syncing, no exporting, no waiting.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 6 — THE ORDER JOURNEY ═════════════════════════════ -->
+  <section class="slide bg-dark" data-index="5">
+    <div class="z-content mx-auto" style="max-width:880px">
+      <div class="ta-c mb-28">
+        <div class="red-pill anim-1 mb-14">How It Works</div>
+        <h2 class="title-lg anim-2 mb-10">The Life of a Single Order</h2>
+        <p class="body-md anim-3 mx-auto" style="max-width:520px">
+          From counter to customer — every step recorded automatically.
+        </p>
+      </div>
+
+      <div class="flex col gap-14 anim-4">
+        <div class="step">
+          <div class="step-num">1</div>
+          <div>
+            <div class="title-sm mb-8">Scanned at the counter</div>
+            <div class="body-sm">Staff scan the package, pick the delivery zone, and assign a driver. The system blocks the same order being sent out twice.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">2</div>
+          <div>
+            <div class="title-sm mb-8">Appears on the driver's phone</div>
+            <div class="body-sm">No phone call needed — the order shows up in the driver's list within moments of being handed over.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">3</div>
+          <div>
+            <div class="title-sm mb-8">Driver confirms the outcome</div>
+            <div class="body-sm">Delivered, partially delivered, or returned — plus the amount collected and how it was paid.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">4</div>
+          <div>
+            <div class="title-sm mb-8">Time and performance calculated</div>
+            <div class="body-sm">The system measures how long the delivery took and compares it to the target time set for that zone.</div>
+          </div>
+        </div>
+        <div class="step">
+          <div class="step-num">5</div>
+          <div>
+            <div class="title-sm mb-8">Manager sees it — and the money is counted correctly</div>
+            <div class="body-sm">Returned orders wait for manager approval before their fee counts toward revenue. Nothing is credited by accident.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 7 — FEATURES & BENEFITS ═══════════════════════════ -->
+  <section class="slide bg-content" data-index="6">
+    <div class="z-content mx-auto" style="max-width:1040px">
+      <div class="ta-c mb-28">
+        <div class="green-pill anim-1 mb-14">Part Three · The Value</div>
+        <h2 class="title-lg anim-2 mb-10">What the Business Gets</h2>
+        <p class="body-md anim-3 mx-auto" style="max-width:560px">
+          Every feature exists to answer a question the business used to guess at.
+        </p>
+      </div>
+
+      <div class="grid-2 anim-4">
+        <div class="win-item">
+          <div class="icon-circle ic-green" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-shield-halved"></i></div>
+          <div>
+            <div class="title-sm mb-8">Full Accountability</div>
+            <div class="body-sm">Every order has a name attached at every step — who handed it over, who carried it, who approved it. Disputes end with a record, not an argument.</div>
+          </div>
+        </div>
+        <div class="win-item">
+          <div class="icon-circle ic-green" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-bolt"></i></div>
+          <div>
+            <div class="title-sm mb-8">Live Numbers, Not Yesterday's</div>
+            <div class="body-sm">Managers open the dashboard and see today as it happens — orders out, delivered, revenue earned, drivers active.</div>
+          </div>
+        </div>
+        <div class="win-item">
+          <div class="icon-circle ic-green" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-stopwatch"></i></div>
+          <div>
+            <div class="title-sm mb-8">Delivery Speed You Can Prove</div>
+            <div class="body-sm">Each zone has a target time. Every delivery is measured against it, so "we're fast" becomes a number you can show.</div>
+          </div>
+        </div>
+        <div class="win-item">
+          <div class="icon-circle ic-green" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-sack-dollar"></i></div>
+          <div>
+            <div class="title-sm mb-8">Money That Adds Up</div>
+            <div class="body-sm">Delivery fees calculated automatically per zone. Driver payouts generated from real deliveries. Returns only counted once a manager approves them.</div>
+          </div>
+        </div>
+        <div class="win-item">
+          <div class="icon-circle ic-green" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-building"></i></div>
+          <div>
+            <div class="title-sm mb-8">Every Branch, One Screen</div>
+            <div class="body-sm">Compare branches, zones and drivers side by side. Managers see their own branch; head office sees everything.</div>
+          </div>
+        </div>
+        <div class="win-item">
+          <div class="icon-circle ic-green" style="width:40px;height:40px;font-size:0.95rem"><i class="fa-solid fa-file-export"></i></div>
+          <div>
+            <div class="title-sm mb-8">Reports Ready to Send</div>
+            <div class="body-sm">Financial, driver payroll, branch and zone reports — exported to Excel or printed, without anyone rebuilding a spreadsheet.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 8 — SECTION: EVOLUTION ════════════════════════════ -->
+  <section class="slide bg-section" data-index="7">
+    <div class="z-content flex col center ta-c mx-auto" style="max-width:760px">
+      <div class="anim-sc mb-20">
+        <div class="icon-circle mx-auto" style="width:78px;height:78px;font-size:1.9rem;background:rgba(255,255,255,0.12);border:1px solid rgba(255,255,255,0.25);color:#fff">
+          <i class="fa-solid fa-arrow-trend-up"></i>
+        </div>
+      </div>
+      <div class="red-pill anim-1 mb-14" style="background:rgba(255,255,255,0.14);border-color:rgba(255,255,255,0.3);color:#fff">Part Four</div>
+      <h2 class="title-xl anim-2 mb-16">Our Evolution</h2>
+      <p class="body-lg anim-3 mx-auto" style="max-width:560px">
+        We didn't buy this system. We built it, outgrew our first version,
+        and rebuilt it properly.
+      </p>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 9 — THE JOURNEY ═══════════════════════════════════ -->
+  <section class="slide bg-tech" data-index="8">
+    <div class="z-content mx-auto" style="max-width:940px">
+      <div class="ta-c mb-28">
+        <div class="red-pill anim-1 mb-14">The Journey</div>
+        <h2 class="title-lg anim-2 mb-10">From Spreadsheet to Real Platform</h2>
+      </div>
+
+      <div class="grid-2 gap-20 anim-3" style="align-items:start">
+        <div>
+          <div class="tl-item">
+            <div class="title-sm mb-8 text-white">Stage One — Google Sheets</div>
+            <div class="body-sm">Our first attempt at getting orders out of notebooks and into something shared. It proved the idea was right.</div>
+          </div>
+          <div class="tl-item">
+            <div class="title-sm mb-8 text-white">Stage Two — Sheets + Apps Script</div>
+            <div class="body-sm">We added automation on top of the spreadsheet. It worked — until the volume grew.</div>
+          </div>
+          <div class="tl-item done">
+            <div class="title-sm mb-8 text-green">Stage Three — The Firebase Platform</div>
+            <div class="body-sm">A purpose-built system on Google's cloud database: three real apps, a real database, and automated servers doing the counting.</div>
+          </div>
+        </div>
+
+        <div class="card anim-4">
+          <div class="title-sm mb-14 text-white"><i class="fa-solid fa-circle-exclamation text-red" style="margin-right:8px"></i>Why we had to move on</div>
+          <div class="flex col gap-14">
+            <div class="body-sm"><strong class="text-white">It got slow.</strong> The more orders we added, the longer everything took to open and update.</div>
+            <div class="body-sm"><strong class="text-white">It was clunky on phones.</strong> Drivers were working from a spreadsheet interface never designed for a phone in one hand.</div>
+            <div class="body-sm"><strong class="text-white">Nothing was truly live.</strong> People worked from their own copy of the truth, and the copies disagreed.</div>
+            <div class="body-sm"><strong class="text-white">One wrong click was permanent.</strong> A deleted row was simply gone — no safety net.</div>
+            <div class="body-sm"><strong class="text-white">It couldn't grow with us.</strong> More branches and more drivers meant more strain, not more capability.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 10 — WHAT THE UPGRADE UNLOCKED ════════════════════ -->
+  <section class="slide bg-dark" data-index="9">
+    <div class="z-content mx-auto" style="max-width:1000px">
+      <div class="ta-c mb-28">
+        <div class="green-pill anim-1 mb-14">The Tech Leap</div>
+        <h2 class="title-lg anim-2 mb-10">What Changed When We Rebuilt</h2>
+        <p class="body-md anim-3 mx-auto" style="max-width:560px">
+          Four upgrades that turned a spreadsheet workaround into a business system.
+        </p>
+      </div>
+
+      <div class="grid-2 anim-4">
+        <div class="card card-hover flex gap-14" style="align-items:flex-start">
+          <div class="icon-circle ic-blue"><i class="fa-solid fa-database"></i></div>
+          <div>
+            <div class="title-sm mb-8">A Real Database</div>
+            <div class="body-sm">Instead of rows in a file, every order is a proper record with rules protecting it. Two people can work at once without overwriting each other.</div>
+          </div>
+        </div>
+
+        <div class="card card-hover flex gap-14" style="align-items:flex-start">
+          <div class="icon-circle ic-red"><i class="fa-solid fa-tower-broadcast"></i></div>
+          <div>
+            <div class="title-sm mb-8">Real-Time Syncing</div>
+            <div class="body-sm">Changes appear on every screen at once. The driver's confirmation reaches the manager's dashboard immediately — no refresh, no export.</div>
+          </div>
+        </div>
+
+        <div class="card card-hover flex gap-14" style="align-items:flex-start">
+          <div class="icon-circle ic-amber"><i class="fa-solid fa-server"></i></div>
+          <div>
+            <div class="title-sm mb-8">Automated Servers Doing the Counting</div>
+            <div class="body-sm">Daily totals are calculated by a background service the moment an order changes — not by a person, and not by the phone in someone's pocket. The numbers are always current and always consistent.</div>
+          </div>
+        </div>
+
+        <div class="card card-hover flex gap-14" style="align-items:flex-start">
+          <div class="icon-circle ic-green"><i class="fa-solid fa-shield-heart"></i></div>
+          <div>
+            <div class="title-sm mb-8">Automatic Backups &amp; Recovery</div>
+            <div class="body-sm">The database is backed up every day automatically, and we can rewind it to any moment in the past seven days. A mistake is now recoverable instead of permanent.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ SLIDE 11 — CURRENT STATUS + CLOSE ═══════════════════════ -->
+  <section class="slide bg-launch" data-index="10">
+    <div class="z-content mx-auto" style="max-width:960px">
+      <div class="ta-c mb-28">
+        <div class="green-pill anim-1 mb-14"><i class="fa-solid fa-circle-check" style="font-size:0.6rem"></i> Part Five · Live Today</div>
+        <h2 class="title-lg anim-2 mb-10">Where We Are Right Now</h2>
+        <p class="body-md anim-3 mx-auto" style="max-width:560px">
+          Not a prototype. A platform running real deliveries, every day.
+        </p>
+      </div>
+
+      <div class="grid-3 anim-4 mb-20">
+        <div class="card stat-box">
+          <div class="icon-circle ic-green mx-auto mb-10"><i class="fa-solid fa-circle-check"></i></div>
+          <div class="title-sm mb-8">In Production</div>
+          <div class="body-sm">All three apps live and in daily use across branches.</div>
+        </div>
+        <div class="card stat-box">
+          <div class="icon-circle ic-blue mx-auto mb-10"><i class="fa-solid fa-shield-halved"></i></div>
+          <div class="title-sm mb-8">Protected</div>
+          <div class="body-sm">Daily automatic backups plus seven-day point-in-time recovery.</div>
+        </div>
+        <div class="card stat-box">
+          <div class="icon-circle ic-amber mx-auto mb-10"><i class="fa-solid fa-gauge-high"></i></div>
+          <div class="title-sm mb-8">Automated</div>
+          <div class="body-sm">Background servers keep every branch's daily figures accurate around the clock.</div>
+        </div>
+      </div>
+
+      <div class="card anim-5 mb-20">
+        <div class="title-sm mb-14 text-white"><i class="fa-solid fa-road text-red" style="margin-right:8px"></i>What's next on the roadmap</div>
+        <div class="grid-2 gap-14">
+          <div class="body-sm"><strong class="text-white">Customer notifications</strong> — automatic messages when an order is on its way and when it arrives.</div>
+          <div class="body-sm"><strong class="text-white">Proof of delivery</strong> — drivers attach a photo or signature at the door.</div>
+          <div class="body-sm"><strong class="text-white">Tighter data separation</strong> — each branch's data locked to that branch at the database level.</div>
+          <div class="body-sm"><strong class="text-white">Deeper analytics</strong> — long-term reporting for executive review.</div>
+        </div>
+      </div>
+
+      <div class="ta-c anim-5">
+        <div class="flex center mb-16">
+          <img src="https://bloompharmacy.github.io/bloom-delivery/B-big-logo.png"
+               alt="Bloom Pharmacy"
+               style="height:clamp(40px,6vw,64px);width:auto;object-fit:contain;filter:drop-shadow(0 4px 20px rgba(178,32,37,0.35))" />
+        </div>
+        <div class="title-md mb-8">A robust, scalable, reliable platform — built for what comes next.</div>
+        <div class="body-md">Thank you. Questions welcome.</div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<button class="nav-arrow" id="prev-btn" aria-label="Previous slide"><i class="fa-solid fa-chevron-left"></i></button>
+<button class="nav-arrow" id="next-btn" aria-label="Next slide"><i class="fa-solid fa-chevron-right"></i></button>
+<div id="nav-dots"></div>
+
+<script>
+(function () {
+  const slides  = Array.from(document.querySelectorAll('.slide'));
+  const TOTAL   = slides.length;
+  const dotsBox = document.getElementById('nav-dots');
+  const counter = document.getElementById('counter');
+  const prevBtn = document.getElementById('prev-btn');
+  const nextBtn = document.getElementById('next-btn');
+  let current = 0;
+
+  slides.forEach((_, i) => {
+    const b = document.createElement('button');
+    b.className = 'dot' + (i === 0 ? ' active' : '');
+    b.setAttribute('aria-label', 'Go to slide ' + (i + 1));
+    b.addEventListener('click', () => go(i));
+    dotsBox.appendChild(b);
+  });
+  const dots = Array.from(dotsBox.children);
+
+  function go(next) {
+    if (next < 0 || next >= TOTAL || next === current) return;
+    const forward = next > current;
+    const out = slides[current];
+    out.classList.remove('active');
+    out.classList.add(forward ? 'exit-left' : 'exit-right');
+    setTimeout(() => out.classList.remove('exit-left', 'exit-right'), 600);
+
+    slides[next].classList.add('active');
+    slides[next].scrollTop = 0;
+
+    dots[current].classList.remove('active');
+    dots[next].classList.add('active');
+
+    current = next;
+    counter.textContent = (current + 1) + ' / ' + TOTAL;
+    prevBtn.disabled = current === 0;
+    nextBtn.disabled = current === TOTAL - 1;
+  }
+
+  prevBtn.addEventListener('click', () => go(current - 1));
+  nextBtn.addEventListener('click', () => go(current + 1));
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'ArrowRight' || e.key === 'PageDown') { e.preventDefault(); go(current + 1); }
+    else if (e.key === 'ArrowLeft' || e.key === 'PageUp') { e.preventDefault(); go(current - 1); }
+    else if (e.key === ' ') { e.preventDefault(); go(current + 1); }
+    else if (e.key === 'Home') { e.preventDefault(); go(0); }
+    else if (e.key === 'End')  { e.preventDefault(); go(TOTAL - 1); }
+  });
+
+  /* Touch swipe */
+  let tsX = 0, tsY = 0;
+  document.addEventListener('touchstart', (e) => {
+    tsX = e.changedTouches[0].clientX; tsY = e.changedTouches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - tsX;
+    const dy = e.changedTouches[0].clientY - tsY;
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5) go(dx < 0 ? current + 1 : current - 1);
+  }, { passive: true });
+
+  counter.textContent = '1 / ' + TOTAL;
+  prevBtn.disabled = true;
+})();
+</script>
+</body>
+</html>
